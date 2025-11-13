@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.feature.auth.domain.usecase.CheckAuthStatusUseCase
+import id.stargan.intikasir.feature.auth.domain.usecase.InitializeDefaultUsersUseCase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,30 +19,48 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SplashViewModel @Inject constructor(
-    private val checkAuthStatusUseCase: CheckAuthStatusUseCase
+    private val checkAuthStatusUseCase: CheckAuthStatusUseCase,
+    private val initializeDefaultUsersUseCase: InitializeDefaultUsersUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SplashUiState())
     val uiState: StateFlow<SplashUiState> = _uiState.asStateFlow()
 
     init {
-        checkAuthStatus()
+        initializeApp()
     }
 
     /**
-     * Check if user is logged in
+     * Initialize aplikasi:
+     * 1. Inisialisasi user default jika belum ada
+     * 2. Check authentication status
      */
-    private fun checkAuthStatus() {
+    private fun initializeApp() {
         viewModelScope.launch {
-            // Minimum splash screen duration
-            delay(1500)
+            try {
+                // Inisialisasi user default jika database masih kosong
+                initializeDefaultUsersUseCase()
 
-            checkAuthStatusUseCase().collect { isLoggedIn ->
+                // Minimum splash screen duration
+                delay(1500)
+
+                // Check authentication status
+                checkAuthStatusUseCase().collect { isLoggedIn ->
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isChecking = false,
+                            authCheckComplete = true,
+                            isLoggedIn = isLoggedIn
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle error, tetap lanjutkan ke auth check
                 _uiState.update { currentState ->
                     currentState.copy(
                         isChecking = false,
                         authCheckComplete = true,
-                        isLoggedIn = isLoggedIn
+                        isLoggedIn = false
                     )
                 }
             }

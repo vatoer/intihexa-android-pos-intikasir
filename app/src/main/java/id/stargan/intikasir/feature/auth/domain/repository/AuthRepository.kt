@@ -70,5 +70,17 @@ interface AuthRepository {
      * @return Boolean true jika match
      */
     fun verifyPin(pin: String, hashedPin: String): Boolean
+
+    /**
+     * Initialize default users jika database masih kosong
+     * Dipanggil saat aplikasi pertama kali dijalankan
+     */
+    suspend fun initializeDefaultUsers()
+
+    /**
+     * Check apakah sudah ada user di database
+     * @return Boolean true jika sudah ada user
+     */
+    suspend fun hasUsers(): Boolean
 }
 

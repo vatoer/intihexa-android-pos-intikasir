@@ -166,5 +166,48 @@ class AuthRepositoryImpl @Inject constructor(
     override fun verifyPin(pin: String, hashedPin: String): Boolean {
         return hashPin(pin) == hashedPin
     }
+
+    override suspend fun initializeDefaultUsers() {
+        // Hanya inisialisasi jika belum ada user
+        if (!hasUsers()) {
+            val defaultUsers = createDefaultUsers()
+            defaultUsers.forEach { user ->
+                localDataSource.insertUser(user)
+            }
+        }
+    }
+
+    override suspend fun hasUsers(): Boolean {
+        return localDataSource.getUserCount() > 0
+    }
+
+    /**
+     * Create default users untuk inisialisasi awal
+     * Admin PIN: 1234
+     * Kasir PIN: 5678
+     */
+    private fun createDefaultUsers(): List<id.stargan.intikasir.data.local.entity.UserEntity> {
+        val currentTime = System.currentTimeMillis()
+        return listOf(
+            id.stargan.intikasir.data.local.entity.UserEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Admin",
+                pin = hashPin("1234"),
+                role = id.stargan.intikasir.data.local.entity.UserRole.ADMIN,
+                isActive = true,
+                createdAt = currentTime,
+                updatedAt = currentTime
+            ),
+            id.stargan.intikasir.data.local.entity.UserEntity(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "Kasir 1",
+                pin = hashPin("5678"),
+                role = id.stargan.intikasir.data.local.entity.UserRole.CASHIER,
+                isActive = true,
+                createdAt = currentTime,
+                updatedAt = currentTime
+            )
+        )
+    }
 }
 

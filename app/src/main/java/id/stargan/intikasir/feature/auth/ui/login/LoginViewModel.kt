@@ -67,18 +67,10 @@ class LoginViewModel @Inject constructor(
             )
         }
 
-        // Validate PIN format real-time
-        if (filteredPin.isNotEmpty()) {
-            val validation = validatePinUseCase(filteredPin)
-            if (validation.isFailure) {
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        showPinError = true,
-                        pinErrorMessage = validation.exceptionOrNull()?.message
-                    )
-                }
-            }
-        }
+        // Note: Tidak perlu validasi real-time saat user mengetik
+        // Validasi hanya dilakukan saat user klik tombol Login
+        // Ini memberikan UX yang lebih baik karena user tidak diganggu
+        // dengan error message saat masih mengetik PIN
     }
 
     /**
