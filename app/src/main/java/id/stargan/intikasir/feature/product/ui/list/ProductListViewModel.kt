@@ -3,113 +3,84 @@ package id.stargan.intikasir.feature.product.ui.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import id.stargan.intikasir.domain.model.UserRole
-import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
-import id.stargan.intikasir.feature.product.domain.usecase.GetCategoriesUseCase
-import id.stargan.intikasir.feature.product.domain.usecase.GetProductsUseCase
+import id.stargan.intikasir.feature.product.domain.usecase.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * ViewModel untuk Product List Screen
- */
 @HiltViewModel
 class ProductListViewModel @Inject constructor(
-    private val getProductsUseCase: GetProductsUseCase,
-    private val getCategoriesUseCase: GetCategoriesUseCase,
-    private val getCurrentUserUseCase: GetCurrentUserUseCase
+    private val getAllProductsUseCase: GetAllProductsUseCase,
+    private val searchProductsUseCase: SearchProductsUseCase,
+    private val getLowStockProductsUseCase: GetLowStockProductsUseCase,
+    private val deleteProductUseCase: DeleteProductUseCase,
+    private val getAllCategoriesUseCase: GetAllCategoriesUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductListUiState())
     val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
 
     init {
-        loadData()
-        checkUserRole()
+        loadCategories()
+        loadProducts()
     }
 
-    /**
-     * Handle UI events
-     */
     fun onEvent(event: ProductListUiEvent) {
         when (event) {
             is ProductListUiEvent.SearchQueryChanged -> {
                 _uiState.update { it.copy(searchQuery = event.query) }
+                searchProducts(event.query)
+            }
+            is ProductListUiEvent.CategorySelected -> {
+                _uiState.update { it.copy(selectedCategory = event.category) }
                 loadProducts()
             }
-            is ProductListUiEvent.FilterChanged -> {
-                _uiState.update { it.copy(currentFilter = event.filter) }
+            is ProductListUiEvent.ToggleLowStockFilter -> {
+                _uiState.update { it.copy(showLowStockOnly = !it.showLowStockOnly) }
                 loadProducts()
             }
-            is ProductListUiEvent.SortChanged -> {
-                _uiState.update { it.copy(currentSort = event.sortBy) }
+            is ProductListUiEvent.DeleteProduct -> {
+                deleteProduct(event.productId)
+            }
+            is ProductListUiEvent.RefreshProducts -> {
                 loadProducts()
             }
-            is ProductListUiEvent.ShowFilterDialog -> {
-                _uiState.update { it.copy(showFilterDialog = true) }
+            is ProductListUiEvent.DismissError -> {
+                _uiState.update { it.copy(error = null) }
             }
-            is ProductListUiEvent.HideFilterDialog -> {
-                _uiState.update { it.copy(showFilterDialog = false) }
-            }
-            is ProductListUiEvent.ShowSortDialog -> {
-                _uiState.update { it.copy(showSortDialog = true) }
-            }
-            is ProductListUiEvent.HideSortDialog -> {
-                _uiState.update { it.copy(showSortDialog = false) }
-            }
-            is ProductListUiEvent.ClearFilter -> {
-                _uiState.update {
-                    it.copy(
-                        currentFilter = id.stargan.intikasir.feature.product.domain.model.ProductFilter(),
-                        searchQuery = ""
-                    )
-                }
-                loadProducts()
-            }
-            is ProductListUiEvent.Refresh -> {
-                loadData()
-            }
-            // Navigation events handled in UI
-            is ProductListUiEvent.ProductClicked -> {}
-            is ProductListUiEvent.AddProductClicked -> {}
-            is ProductListUiEvent.ManageCategoriesClicked -> {}
         }
     }
 
-    /**
-     * Load products and categories
-     */
-    private fun loadData() {
-        loadProducts()
-        loadCategories()
+    private fun loadCategories() {
+        viewModelScope.launch {
+            getAllCategoriesUseCase().collect { categories ->
+                _uiState.update { it.copy(categories = categories) }
+            }
+        }
     }
 
-    /**
-     * Load products dengan filter dan sort
-     */
     private fun loadProducts() {
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true) }
 
-                getProductsUseCase(
-                    filter = _uiState.value.currentFilter,
-                    sortBy = _uiState.value.currentSort
-                ).collect { products ->
-                    val filteredProducts = if (_uiState.value.searchQuery.isNotEmpty()) {
-                        products.filter { product ->
-                            product.name.contains(_uiState.value.searchQuery, ignoreCase = true) ||
-                            product.description?.contains(_uiState.value.searchQuery, ignoreCase = true) == true
-                        }
+            try {
+                val flow = when {
+                    _uiState.value.showLowStockOnly -> getLowStockProductsUseCase()
+                    else -> getAllProductsUseCase()
+                }
+
+                flow.collect { products ->
+                    val filtered = if (_uiState.value.selectedCategory != null) {
+                        products.filter { it.categoryId == _uiState.value.selectedCategory?.id }
                     } else {
                         products
                     }
 
                     _uiState.update {
                         it.copy(
-                            products = filteredProducts,
-                            isLoading = false
+                            products = filtered,
+                            isLoading = false,
+                            error = null
                         )
                     }
                 }
@@ -124,30 +95,27 @@ class ProductListViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Load categories
-     */
-    private fun loadCategories() {
+    private fun searchProducts(query: String) {
+        if (query.isBlank()) {
+            loadProducts()
+            return
+        }
+
         viewModelScope.launch {
-            try {
-                getCategoriesUseCase().collect { categories ->
-                    _uiState.update { it.copy(categories = categories) }
-                }
-            } catch (e: Exception) {
-                // Handle error silently for categories
-                e.printStackTrace()
+            searchProductsUseCase(query).collect { products ->
+                _uiState.update { it.copy(products = products) }
             }
         }
     }
 
-    /**
-     * Check if user is admin
-     */
-    private fun checkUserRole() {
+    private fun deleteProduct(productId: String) {
         viewModelScope.launch {
-            getCurrentUserUseCase().collect { user ->
+            try {
+                deleteProductUseCase(productId)
+                // Products will auto-refresh via Flow
+            } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(isAdmin = user?.role == UserRole.ADMIN)
+                    it.copy(error = "Gagal menghapus produk: ${e.message}")
                 }
             }
         }
