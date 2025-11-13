@@ -12,6 +12,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import id.stargan.intikasir.feature.home.ui.HomeScreen
+import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
+import id.stargan.intikasir.feature.product.navigation.ProductRoutes
 
 /**
  * Navigation graph untuk Home feature
@@ -29,9 +31,40 @@ fun NavGraphBuilder.homeNavGraph(
         )
     }
 
-    // Placeholder screens untuk setiap menu
+    // Product List Screen
     composable(HomeRoutes.PRODUCTS) {
-        PlaceholderScreen(title = "Produk", onBack = { navController.navigateUp() })
+        ProductListScreen(
+            onProductClick = { productId ->
+                navController.navigate(ProductRoutes.productDetail(productId))
+            },
+            onAddProductClick = {
+                navController.navigate(ProductRoutes.PRODUCT_ADD)
+            },
+            onManageCategoriesClick = {
+                navController.navigate(ProductRoutes.CATEGORY_MANAGE)
+            },
+            onBackClick = { navController.navigateUp() }
+        )
+    }
+
+    // Product Detail Screen (Placeholder)
+    composable(ProductRoutes.PRODUCT_DETAIL) {
+        PlaceholderScreen(title = "Detail Produk", onBack = { navController.navigateUp() })
+    }
+
+    // Product Add Screen (Placeholder)
+    composable(ProductRoutes.PRODUCT_ADD) {
+        PlaceholderScreen(title = "Tambah Produk", onBack = { navController.navigateUp() })
+    }
+
+    // Product Edit Screen (Placeholder)
+    composable(ProductRoutes.PRODUCT_EDIT) {
+        PlaceholderScreen(title = "Edit Produk", onBack = { navController.navigateUp() })
+    }
+
+    // Category Management Screen (Placeholder)
+    composable(ProductRoutes.CATEGORY_MANAGE) {
+        PlaceholderScreen(title = "Kelola Kategori", onBack = { navController.navigateUp() })
     }
 
     composable(HomeRoutes.HISTORY) {
