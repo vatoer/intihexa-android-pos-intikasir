@@ -6,18 +6,14 @@ import javax.inject.Inject
 
 /**
  * Use case untuk save category (insert or update)
+ * Uses upsert pattern - Room's REPLACE strategy handles both insert and update
  */
 class SaveCategoryUseCase @Inject constructor(
     private val productRepository: ProductRepository
 ) {
     suspend operator fun invoke(category: Category) {
-        if (category.id.isEmpty()) {
-            // New category - insert
-            productRepository.insertCategory(category)
-        } else {
-            // Existing category - update
-            productRepository.updateCategory(category)
-        }
+        // Room's @Insert with OnConflictStrategy.REPLACE handles both insert and update
+        productRepository.insertCategory(category)
     }
 }
 

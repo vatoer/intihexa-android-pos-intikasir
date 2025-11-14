@@ -40,11 +40,13 @@ object ProductMapper {
             cost = this.cost ?: 0.0,
             stock = this.stock,
             minStock = this.minStock ?: 0,
+            lowStockThreshold = this.lowStockThreshold ?: 0,
             imageUrl = this.imageUrl,
             isActive = this.isActive,
+            isDeleted = false,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
-            lowStockThreshold = this.lowStockThreshold ?: 0
+            syncedAt = null
         )
     }
 
@@ -55,8 +57,8 @@ object ProductMapper {
             description = this.description,
             color = this.color,
             icon = this.icon,
-            order = 0, // default value, entity tidak punya order
-            isActive = true, // default value, entity tidak punya isActive
+            order = this.order,
+            isActive = this.isActive && !this.isDeleted,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt
         )
@@ -69,8 +71,12 @@ object ProductMapper {
             description = this.description,
             color = this.color,
             icon = this.icon,
+            order = this.order,
+            isActive = this.isActive,
+            isDeleted = false,
             createdAt = this.createdAt,
-            updatedAt = this.updatedAt
+            updatedAt = this.updatedAt,
+            syncedAt = null
         )
     }
 }

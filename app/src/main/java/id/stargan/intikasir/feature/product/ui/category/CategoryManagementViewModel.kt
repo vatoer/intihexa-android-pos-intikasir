@@ -21,7 +21,27 @@ class CategoryManagementViewModel @Inject constructor(
     val uiState: StateFlow<CategoryManagementUiState> = _uiState.asStateFlow()
 
     init {
-        loadCategories()
+        // Subscribe to categories flow once
+        viewModelScope.launch {
+            getAllCategoriesUseCase()
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Gagal memuat kategori: ${e.message}"
+                        )
+                    }
+                }
+                .collect { categories ->
+                    _uiState.update {
+                        it.copy(
+                            categories = categories.sortedBy { cat -> cat.order },
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+        }
     }
 
     fun onEvent(event: CategoryManagementUiEvent) {
@@ -97,31 +117,6 @@ class CategoryManagementViewModel @Inject constructor(
         }
     }
 
-    private fun loadCategories() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
-            try {
-                getAllCategoriesUseCase().collect { categories ->
-                    _uiState.update {
-                        it.copy(
-                            categories = categories.sortedBy { it.order },
-                            isLoading = false,
-                            error = null
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Gagal memuat kategori: ${e.message}"
-                    )
-                }
-            }
-        }
-    }
-
     private fun saveCategory() {
         val state = _uiState.value
 
@@ -161,6 +156,7 @@ class CategoryManagementViewModel @Inject constructor(
                             "Kategori berhasil ditambahkan"
                     )
                 }
+                // Categories will auto-refresh via Flow
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(

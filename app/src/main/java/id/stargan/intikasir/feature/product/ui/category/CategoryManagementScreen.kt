@@ -32,6 +32,29 @@ fun CategoryManagementScreen(
     viewModel: CategoryManagementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Handle error messages
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.onEvent(CategoryManagementUiEvent.DismissError)
+        }
+    }
+
+    // Handle success messages
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onEvent(CategoryManagementUiEvent.DismissSuccess)
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -56,51 +79,7 @@ fun CategoryManagementScreen(
             }
         },
         snackbarHost = {
-            // Error Snackbar
-            if (uiState.error != null) {
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    action = {
-                        TextButton(
-                            onClick = { viewModel.onEvent(CategoryManagementUiEvent.DismissError) }
-                        ) {
-                            Text("OK")
-                        }
-                    }
-                ) {
-                    Text(uiState.error ?: "")
-                }
-            }
-
-            // Success Snackbar
-            if (uiState.successMessage != null) {
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    action = {
-                        TextButton(
-                            onClick = { viewModel.onEvent(CategoryManagementUiEvent.DismissSuccess) }
-                        ) {
-                            Text("OK")
-                        }
-                    }
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(uiState.successMessage ?: "")
-                    }
-                }
-            }
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
