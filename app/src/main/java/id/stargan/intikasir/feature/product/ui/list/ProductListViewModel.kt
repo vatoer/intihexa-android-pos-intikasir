@@ -26,28 +26,58 @@ class ProductListViewModel @Inject constructor(
     }
 
     fun onEvent(event: ProductListUiEvent) {
-        when (event) {
-            is ProductListUiEvent.SearchQueryChanged -> {
+        when {
+            event is ProductListUiEvent.SearchQueryChanged -> {
                 _uiState.update { it.copy(searchQuery = event.query) }
                 searchProducts(event.query)
             }
-            is ProductListUiEvent.CategorySelected -> {
+            event is ProductListUiEvent.CategorySelected -> {
                 _uiState.update { it.copy(selectedCategory = event.category) }
                 loadProducts()
             }
-            is ProductListUiEvent.ToggleLowStockFilter -> {
-                _uiState.update { it.copy(showLowStockOnly = !it.showLowStockOnly) }
+            event === ProductListUiEvent.ToggleLowStockFilter -> {
+                _uiState.update { it.copy(showLowStockOnly = !_uiState.value.showLowStockOnly) }
                 loadProducts()
             }
-            is ProductListUiEvent.DeleteProduct -> {
+            event is ProductListUiEvent.DeleteProduct -> {
                 deleteProduct(event.productId)
             }
-            is ProductListUiEvent.RefreshProducts -> {
+            event === ProductListUiEvent.RefreshProducts -> {
                 loadProducts()
             }
-            is ProductListUiEvent.DismissError -> {
+            event === ProductListUiEvent.DismissError -> {
                 _uiState.update { it.copy(error = null) }
             }
+            event is ProductListUiEvent.FilterChanged -> {
+                _uiState.update { it.copy(currentFilter = event.filter) }
+                loadProducts()
+            }
+            event is ProductListUiEvent.SortChanged -> {
+                _uiState.update { it.copy(currentSort = event.sort) }
+                loadProducts()
+            }
+            event is ProductListUiEvent.ProductClicked -> {
+                // Navigation handled in UI
+            }
+            event === ProductListUiEvent.AddProductClicked -> {
+                // Navigation handled in UI
+            }
+            event === ProductListUiEvent.ManageCategoriesClicked -> {
+                // Navigation handled in UI
+            }
+            event === ProductListUiEvent.ShowFilterDialog -> {
+                _uiState.update { it.copy(showFilterDialog = true) }
+            }
+            event === ProductListUiEvent.HideFilterDialog -> {
+                _uiState.update { it.copy(showFilterDialog = false) }
+            }
+            event === ProductListUiEvent.ShowSortDialog -> {
+                _uiState.update { it.copy(showSortDialog = true) }
+            }
+            event === ProductListUiEvent.HideSortDialog -> {
+                _uiState.update { it.copy(showSortDialog = false) }
+            }
+            else -> {}
         }
     }
 
@@ -121,4 +151,3 @@ class ProductListViewModel @Inject constructor(
         }
     }
 }
-

@@ -16,7 +16,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import id.stargan.intikasir.feature.product.ui.components.ProductFilterDialog
 import id.stargan.intikasir.feature.product.ui.components.ProductListItem
 import id.stargan.intikasir.feature.product.ui.components.ProductSortDialog
-
+import id.stargan.intikasir.feature.product.ui.list.ProductListUiState
+import id.stargan.intikasir.feature.product.ui.list.ProductListUiEvent
 /**
  * Product List Screen
  * Menampilkan daftar produk dengan filter, sort, dan search
@@ -85,7 +86,7 @@ fun ProductListScreen(
                 uiState.error != null -> {
                     ErrorContent(
                         error = uiState.error!!,
-                        onRetry = { viewModel.onEvent(ProductListUiEvent.Refresh) },
+                        onRetry = { viewModel.onEvent(ProductListUiEvent.RefreshProducts) },
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -303,4 +304,5 @@ private fun ErrorContent(
         }
     }
 }
+
 

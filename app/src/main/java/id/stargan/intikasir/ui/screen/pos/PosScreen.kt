@@ -123,17 +123,17 @@ private fun ProductPanel(
 ) {
     // Dummy data untuk demo
     val dummyCategories = listOf(
-        Category("1", "Makanan", null, "#FF6B6B", "🍔", 0, 0),
-        Category("2", "Minuman", null, "#4ECDC4", "🥤", 0, 0),
-        Category("3", "Snack", null, "#FFE66D", "🍿", 0, 0)
+        Category("1", "Makanan", null, "#FF6B6B", "🍔", 0, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Category("2", "Minuman", null, "#4ECDC4", "🥤", 1, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Category("3", "Snack", null, "#FFE66D", "🍿", 2, true, System.currentTimeMillis(), System.currentTimeMillis())
     )
 
     val dummyProducts = listOf(
-        Product("1", "Nasi Goreng", "Nasi goreng spesial", 15000.0, categoryId = "1", categoryName = "Makanan", createdAt = 0, updatedAt = 0),
-        Product("2", "Mie Goreng", "Mie goreng pedas", 12000.0, categoryId = "1", categoryName = "Makanan", createdAt = 0, updatedAt = 0),
-        Product("3", "Es Teh Manis", "Teh manis dingin", 3000.0, categoryId = "2", categoryName = "Minuman", createdAt = 0, updatedAt = 0),
-        Product("4", "Kopi", "Kopi hitam", 5000.0, categoryId = "2", categoryName = "Minuman", createdAt = 0, updatedAt = 0),
-        Product("5", "Keripik", "Keripik kentang", 8000.0, categoryId = "3", categoryName = "Snack", createdAt = 0, updatedAt = 0)
+        Product("1", "Nasi Goreng", null, null, "1", "Makanan", "Nasi goreng spesial", 15000.0, null, 10, null, 5, null, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Product("2", "Mie Goreng", null, null, "1", "Makanan", "Mie goreng pedas", 12000.0, null, 15, null, 5, null, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Product("3", "Es Teh Manis", null, null, "2", "Minuman", "Teh manis dingin", 3000.0, null, 20, null, 10, null, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Product("4", "Kopi", null, null, "2", "Minuman", "Kopi hitam", 5000.0, null, 25, null, 10, null, true, System.currentTimeMillis(), System.currentTimeMillis()),
+        Product("5", "Keripik", null, null, "3", "Snack", "Keripik kentang", 8000.0, null, 30, null, 10, null, true, System.currentTimeMillis(), System.currentTimeMillis())
     )
 
     Column(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
@@ -263,15 +263,13 @@ private fun ProductCard(
             )
 
             // Stock indicator
-            if (product.trackStock) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Stok: ${product.stock}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (product.isLowStock) MaterialTheme.colorScheme.error
-                           else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Stok: ${product.stock}",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (product.isLowStock) MaterialTheme.colorScheme.error
+                       else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

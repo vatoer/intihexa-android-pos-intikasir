@@ -6,11 +6,9 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 /**
- * Use case untuk get all categories (alias untuk GetAllCategoriesUseCase)
- * Deprecated: Gunakan GetAllCategoriesUseCase
+ * Use case untuk get all categories
  */
-@Deprecated("Use GetAllCategoriesUseCase instead", ReplaceWith("GetAllCategoriesUseCase"))
-class GetCategoriesUseCase @Inject constructor(
+class GetAllCategoriesUseCase @Inject constructor(
     private val productRepository: ProductRepository
 ) {
     operator fun invoke(): Flow<List<Category>> {

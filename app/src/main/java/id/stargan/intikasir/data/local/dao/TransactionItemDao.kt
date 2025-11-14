@@ -16,6 +16,7 @@ interface TransactionItemDao {
     @Query("SELECT * FROM transaction_items WHERE id = :itemId")
     suspend fun getItemById(itemId: String): TransactionItemEntity?
 
+    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT transaction_items.*, SUM(quantity) as totalQuantity 
         FROM transaction_items 

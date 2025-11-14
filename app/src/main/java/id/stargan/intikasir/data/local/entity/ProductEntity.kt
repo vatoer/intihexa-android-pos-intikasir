@@ -39,7 +39,8 @@ data class ProductEntity(
     // Stock Management
     val trackStock: Boolean = true,
     val stock: Int = 0,
-    val lowStockThreshold: Int = 5,
+    val minStock: Int = 0,
+    val lowStockThreshold: Int = 10,
 
     // Status
     val isActive: Boolean = true,

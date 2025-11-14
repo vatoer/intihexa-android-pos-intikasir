@@ -22,33 +22,28 @@ class ProductRepositoryImpl @Inject constructor(
     override fun getAllProducts(): Flow<List<Product>> {
         return productDao.getAllProducts().map { entities ->
             entities.map { entity ->
-                val category = entity.categoryId?.let { categoryDao.getCategoryById(it) }
-                entity.toDomain(category?.name)
+                // CategoryName akan di-resolve di ViewModel jika diperlukan
+                entity.toDomain(null)
             }
         }
     }
 
     override fun getProductById(productId: String): Flow<Product?> {
         return productDao.getProductByIdFlow(productId).map { entity ->
-            entity?.let {
-                val category = it.categoryId?.let { id -> categoryDao.getCategoryById(id) }
-                it.toDomain(category?.name)
-            }
+            entity?.toDomain(null)
         }
     }
 
     override fun getProductsByCategory(categoryId: String): Flow<List<Product>> {
         return productDao.getProductsByCategory(categoryId).map { entities ->
-            val category = categoryDao.getCategoryById(categoryId)
-            entities.map { it.toDomain(category?.name) }
+            entities.map { it.toDomain(null) }
         }
     }
 
     override fun searchProducts(query: String): Flow<List<Product>> {
         return productDao.searchProducts(query).map { entities ->
             entities.map { entity ->
-                val category = entity.categoryId?.let { categoryDao.getCategoryById(it) }
-                entity.toDomain(category?.name)
+                entity.toDomain(null)
             }
         }
     }
@@ -56,8 +51,7 @@ class ProductRepositoryImpl @Inject constructor(
     override fun getLowStockProducts(): Flow<List<Product>> {
         return productDao.getLowStockProducts().map { entities ->
             entities.map { entity ->
-                val category = entity.categoryId?.let { categoryDao.getCategoryById(it) }
-                entity.toDomain(category?.name)
+                entity.toDomain(null)
             }
         }
     }

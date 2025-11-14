@@ -151,6 +151,7 @@ class ProductFormViewModel @Inject constructor(
                     cost = state.cost.toDoubleOrNull(),
                     stock = state.stock.toInt(),
                     minStock = state.minStock.toIntOrNull() ?: 5,
+                    lowStockThreshold = state.minStock.toIntOrNull() ?: 10, // Tambahkan ini
                     imageUrl = state.imageUrl.trim().ifBlank { null },
                     isActive = state.isActive,
                     createdAt = System.currentTimeMillis(),
@@ -198,4 +199,3 @@ class ProductFormViewModel @Inject constructor(
         return isValid
     }
 }
-

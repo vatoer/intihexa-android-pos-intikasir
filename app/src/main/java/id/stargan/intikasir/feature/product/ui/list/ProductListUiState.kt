@@ -13,7 +13,12 @@ data class ProductListUiState(
     val searchQuery: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
-    val showLowStockOnly: Boolean = false
+    val showLowStockOnly: Boolean = false,
+    val showFilterDialog: Boolean = false,
+    val showSortDialog: Boolean = false,
+    val currentFilter: id.stargan.intikasir.feature.product.domain.model.ProductFilter = id.stargan.intikasir.feature.product.domain.model.ProductFilter(),
+    val currentSort: id.stargan.intikasir.feature.product.domain.model.ProductSortBy = id.stargan.intikasir.feature.product.domain.model.ProductSortBy.NAME_ASC,
+    val isAdmin: Boolean = false
 )
 
 /**
@@ -26,5 +31,13 @@ sealed class ProductListUiEvent {
     data class DeleteProduct(val productId: String) : ProductListUiEvent()
     data object RefreshProducts : ProductListUiEvent()
     data object DismissError : ProductListUiEvent()
+    data object ShowFilterDialog : ProductListUiEvent()
+    data object HideFilterDialog : ProductListUiEvent()
+    data object ShowSortDialog : ProductListUiEvent()
+    data object HideSortDialog : ProductListUiEvent()
+    data class FilterChanged(val filter: id.stargan.intikasir.feature.product.domain.model.ProductFilter) : ProductListUiEvent()
+    data class SortChanged(val sort: id.stargan.intikasir.feature.product.domain.model.ProductSortBy) : ProductListUiEvent()
+    data class ProductClicked(val productId: String) : ProductListUiEvent()
+    data object AddProductClicked : ProductListUiEvent()
+    data object ManageCategoriesClicked : ProductListUiEvent()
 }
-

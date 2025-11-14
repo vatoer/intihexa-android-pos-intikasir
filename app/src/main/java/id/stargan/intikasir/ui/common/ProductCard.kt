@@ -93,11 +93,11 @@ fun ProductCardPreview() {
         cost = 100000.0,
         sku = "SKU123",
         barcode = "1234567890",
-        imageUrl = null, // Ganti dengan URL gambar jika ingin test gambar
+        imageUrl = null,
         categoryId = "cat1",
         categoryName = "Kategori A",
-        trackStock = true,
         stock = 10,
+        minStock = 2,
         lowStockThreshold = 5,
         isActive = true,
         createdAt = 1699766400000,
