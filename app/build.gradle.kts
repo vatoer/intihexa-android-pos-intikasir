@@ -100,6 +100,9 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+    // Image cropping
+    implementation("com.github.yalantis:ucrop:2.2.8")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

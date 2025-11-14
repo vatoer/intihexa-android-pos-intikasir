@@ -1,13 +1,18 @@
 package id.stargan.intikasir.feature.product.ui.form
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.stargan.intikasir.data.local.image.ImageRepository
 import id.stargan.intikasir.domain.model.Product
 import id.stargan.intikasir.feature.product.domain.usecase.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 
@@ -16,6 +21,7 @@ class ProductFormViewModel @Inject constructor(
     private val getProductByIdUseCase: GetProductByIdUseCase,
     private val saveProductUseCase: SaveProductUseCase,
     private val getAllCategoriesUseCase: GetAllCategoriesUseCase,
+    private val imageRepository: ImageRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -29,56 +35,64 @@ class ProductFormViewModel @Inject constructor(
         productId?.let { loadProduct(it) }
     }
 
+    private fun formatThousand(value: String): String {
+        val clean = value.filter { it.isDigit() }
+        if (clean.isEmpty()) return ""
+        val number = clean.toLong()
+        val symbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+            groupingSeparator = '.'
+            decimalSeparator = ','
+        }
+        val df = DecimalFormat("#,###", symbols)
+        return df.format(number)
+    }
+
     fun onEvent(event: ProductFormUiEvent) {
         when (event) {
-            is ProductFormUiEvent.NameChanged -> {
-                _uiState.update { it.copy(name = event.name, nameError = null) }
-            }
-            is ProductFormUiEvent.SkuChanged -> {
-                _uiState.update { it.copy(sku = event.sku) }
-            }
-            is ProductFormUiEvent.BarcodeChanged -> {
-                _uiState.update { it.copy(barcode = event.barcode) }
-            }
-            is ProductFormUiEvent.CategoryChanged -> {
-                _uiState.update { it.copy(categoryId = event.categoryId) }
-            }
-            is ProductFormUiEvent.DescriptionChanged -> {
-                _uiState.update { it.copy(description = event.description) }
-            }
+            is ProductFormUiEvent.NameChanged -> _uiState.update { it.copy(name = event.name, nameError = null) }
+            is ProductFormUiEvent.SkuChanged -> _uiState.update { it.copy(sku = event.sku) }
+            is ProductFormUiEvent.BarcodeChanged -> _uiState.update { it.copy(barcode = event.barcode) }
+            is ProductFormUiEvent.BarcodeScanned -> _uiState.update { it.copy(barcode = event.value) }
+            is ProductFormUiEvent.CategoryChanged -> _uiState.update { it.copy(categoryId = event.categoryId) }
+            is ProductFormUiEvent.DescriptionChanged -> _uiState.update { it.copy(description = event.description) }
             is ProductFormUiEvent.PriceChanged -> {
-                _uiState.update { it.copy(price = event.price, priceError = null) }
+                _uiState.update { it.copy(price = event.price, rawPrice = event.raw, priceError = null) }
             }
             is ProductFormUiEvent.CostChanged -> {
-                _uiState.update { it.copy(cost = event.cost) }
+                _uiState.update { it.copy(cost = event.cost, rawCost = event.raw) }
             }
-            is ProductFormUiEvent.StockChanged -> {
-                _uiState.update { it.copy(stock = event.stock, stockError = null) }
+            is ProductFormUiEvent.StockChanged -> _uiState.update { it.copy(stock = event.stock, stockError = null) }
+            is ProductFormUiEvent.MinStockChanged -> _uiState.update { it.copy(minStock = event.minStock) }
+            is ProductFormUiEvent.ImagePicked -> {
+                viewModelScope.launch {
+                    _uiState.update { it.copy(isImageProcessing = true) }
+                    val path = imageRepository.saveImage(event.uri)
+                    // Convert file path to Uri for preview
+                    val fileUri = Uri.parse("file://$path")
+                    _uiState.update { it.copy(imagePreviewUri = fileUri, imageUrl = path, isImageProcessing = false) }
+                }
             }
-            is ProductFormUiEvent.MinStockChanged -> {
-                _uiState.update { it.copy(minStock = event.minStock) }
+            is ProductFormUiEvent.ImageCropped -> {
+                viewModelScope.launch {
+                    _uiState.value.imageUrl.takeIf { it.isNotBlank() }?.let { old -> imageRepository.deleteImage(old) }
+                    _uiState.update { it.copy(isImageProcessing = true) }
+                    val path = imageRepository.saveImage(event.uri)
+                    // Convert file path to Uri for preview
+                    val fileUri = Uri.parse("file://$path")
+                    _uiState.update { it.copy(imagePreviewUri = fileUri, imageUrl = path, isImageProcessing = false) }
+                }
             }
-            is ProductFormUiEvent.ImageUrlChanged -> {
-                _uiState.update { it.copy(imageUrl = event.imageUrl) }
+            ProductFormUiEvent.RemoveImage -> {
+                viewModelScope.launch { _uiState.value.imageUrl.takeIf { it.isNotBlank() }?.let { imageRepository.deleteImage(it) } }
+                _uiState.update { it.copy(imagePreviewUri = null, imageUrl = "") }
             }
-            is ProductFormUiEvent.ActiveChanged -> {
-                _uiState.update { it.copy(isActive = event.isActive) }
-            }
-            is ProductFormUiEvent.ScanBarcode -> {
-                // Handled by UI - will trigger barcode scanner
-            }
-            is ProductFormUiEvent.PickImage -> {
-                // Handled by UI - will trigger image picker
-            }
-            is ProductFormUiEvent.SaveProduct -> {
-                saveProduct()
-            }
-            is ProductFormUiEvent.DismissError -> {
-                _uiState.update { it.copy(error = null) }
-            }
-            is ProductFormUiEvent.NavigateBack -> {
-                // Handled by UI
-            }
+            is ProductFormUiEvent.ActiveChanged -> _uiState.update { it.copy(isActive = event.isActive) }
+            ProductFormUiEvent.ScanBarcode -> { /* Trigger UI side effect */ }
+            ProductFormUiEvent.PickImage -> { /* Trigger UI side effect */ }
+            ProductFormUiEvent.CaptureImage -> { /* Trigger UI side effect */ }
+            ProductFormUiEvent.SaveProduct -> saveProduct()
+            ProductFormUiEvent.DismissError -> _uiState.update { it.copy(error = null) }
+            ProductFormUiEvent.NavigateBack -> { /* handled by UI */ }
         }
     }
 
@@ -105,31 +119,24 @@ class ProductFormViewModel @Inject constructor(
                                 barcode = product.barcode ?: "",
                                 categoryId = product.categoryId ?: "",
                                 description = product.description ?: "",
-                                price = product.price.toString(),
-                                cost = product.cost?.toString() ?: "",
+                                price = formatThousand(product.price.toLong().toString()),
+                                rawPrice = product.price.toLong().toString(),
+                                cost = product.cost?.let { c -> formatThousand(c.toLong().toString()) } ?: "",
+                                rawCost = product.cost?.toLong()?.toString() ?: "",
                                 stock = product.stock.toString(),
                                 minStock = product.minStock.toString(),
                                 imageUrl = product.imageUrl ?: "",
+                                imagePreviewUri = product.imageUrl?.let { Uri.parse(it) },
                                 isActive = product.isActive,
                                 isLoading = false
                             )
                         }
                     } else {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = "Produk tidak ditemukan"
-                            )
-                        }
+                        _uiState.update { it.copy(isLoading = false, error = "Produk tidak ditemukan") }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Gagal memuat produk: ${e.message}"
-                    )
-                }
+                _uiState.update { it.copy(isLoading = false, error = "Gagal memuat produk: ${e.message}") }
             }
         }
     }
@@ -145,6 +152,8 @@ class ProductFormViewModel @Inject constructor(
 
             try {
                 val state = _uiState.value
+                val priceDouble = state.rawPrice.toDoubleOrNull() ?: 0.0
+                val costDouble = state.rawCost.toDoubleOrNull()
                 val product = Product(
                     id = if (state.isEditMode) state.productId else UUID.randomUUID().toString(),
                     name = state.name.trim(),
@@ -153,12 +162,12 @@ class ProductFormViewModel @Inject constructor(
                     categoryId = state.categoryId.ifBlank { null },
                     categoryName = state.categories.find { it.id == state.categoryId }?.name,
                     description = state.description.trim().ifBlank { null },
-                    price = state.price.toDouble(),
-                    cost = state.cost.toDoubleOrNull(),
+                    price = priceDouble,
+                    cost = costDouble,
                     stock = state.stock.toInt(),
                     minStock = state.minStock.toIntOrNull() ?: 5,
-                    lowStockThreshold = state.minStock.toIntOrNull() ?: 10, // Tambahkan ini
-                    imageUrl = state.imageUrl.trim().ifBlank { null },
+                    lowStockThreshold = state.minStock.toIntOrNull() ?: 10,
+                    imageUrl = state.imageUrl.ifBlank { state.imagePreviewUri?.toString() },
                     isActive = state.isActive,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis()
@@ -185,23 +194,25 @@ class ProductFormViewModel @Inject constructor(
 
     private fun validateForm(): Boolean {
         val state = _uiState.value
-        var isValid = true
+        var valid = true
 
         if (state.name.isBlank()) {
             _uiState.update { it.copy(nameError = "Nama produk harus diisi") }
-            isValid = false
+            valid = false
         }
 
-        if (state.price.isBlank() || state.price.toDoubleOrNull() == null || state.price.toDouble() <= 0) {
-            _uiState.update { it.copy(priceError = "Harga harus diisi dan lebih dari 0") }
-            isValid = false
+        val priceVal = state.rawPrice.toDoubleOrNull()
+        if (priceVal == null || priceVal <= 0.0) {
+            _uiState.update { it.copy(priceError = "Harga harus valid dan > 0") }
+            valid = false
         }
 
-        if (state.stock.isBlank() || state.stock.toIntOrNull() == null || state.stock.toInt() < 0) {
-            _uiState.update { it.copy(stockError = "Stok harus diisi dan tidak boleh negatif") }
-            isValid = false
+        val stockVal = state.stock.toIntOrNull()
+        if (stockVal == null || stockVal < 0) {
+            _uiState.update { it.copy(stockError = "Stok harus valid dan >= 0") }
+            valid = false
         }
 
-        return isValid
+        return valid
     }
 }

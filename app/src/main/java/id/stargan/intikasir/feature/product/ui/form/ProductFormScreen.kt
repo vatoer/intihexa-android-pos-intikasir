@@ -1,18 +1,42 @@
 package id.stargan.intikasir.feature.product.ui.form
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.yalantis.ucrop.UCrop
+import android.net.Uri
+import java.io.File
+
+// Simple visual transformation for thousand separator display (already formatted string)
+private object NoOpTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        return TransformedText(text, OffsetMapping.Identity)
+    }
+}
 
 /**
  * Product Form Screen - Add/Edit Product
@@ -26,6 +50,58 @@ fun ProductFormScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cropLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val output = result.data?.let { UCrop.getOutput(it) }
+            output?.let { viewModel.onEvent(ProductFormUiEvent.ImageCropped(it)) }
+        }
+    }
+
+    fun launchCrop(input: Uri) {
+        val dest = Uri.fromFile(File(context.cacheDir, "crop_${System.currentTimeMillis()}.jpg"))
+        val options = UCrop.Options().apply {
+            setCompressionQuality(85)
+            setHideBottomControls(false)
+            setFreeStyleCropEnabled(false)
+            setToolbarColor(context.getColor(android.R.color.black))
+            setStatusBarColor(context.getColor(android.R.color.black))
+            setToolbarWidgetColor(context.getColor(android.R.color.white))
+            setActiveControlsWidgetColor(context.getColor(android.R.color.holo_green_dark))
+            setDimmedLayerColor(context.getColor(android.R.color.black))
+            setToolbarTitle("Crop Gambar")
+            setShowCropFrame(true)
+            setShowCropGrid(true)
+            setCropGridStrokeWidth(2)
+        }
+        val intent = UCrop.of(input, dest)
+            .withAspectRatio(1f, 1f)
+            .withMaxResultSize(1080, 1080)
+            .withOptions(options)
+            .getIntent(context)
+        cropLauncher.launch(intent)
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { launchCrop(it) }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            pendingCameraUri?.let { launchCrop(it) }
+        }
+    }
+
+    val onPickImage: () -> Unit = { galleryLauncher.launch("image/*") }
+    val onCaptureImage: () -> Unit = {
+        val file = File(context.cacheDir, "cap_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+        pendingCameraUri = uri
+        cameraLauncher.launch(uri)
+    }
 
     // Handle navigation back on success
     LaunchedEffect(uiState.saveSuccess) {
@@ -71,7 +147,7 @@ fun ProductFormScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
             }
@@ -105,13 +181,18 @@ fun ProductFormScreen(
                     singleLine = true
                 )
 
-                // Barcode
+                // Barcode with scan icon
                 OutlinedTextField(
                     value = uiState.barcode,
                     onValueChange = { viewModel.onEvent(ProductFormUiEvent.BarcodeChanged(it)) },
                     label = { Text("Barcode") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { viewModel.onEvent(ProductFormUiEvent.ScanBarcode) }) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan Barcode")
+                        }
+                    }
                 )
 
                 // Category Dropdown
@@ -154,28 +235,40 @@ fun ProductFormScreen(
                     }
                 }
 
-                // Price
+                // Price with thousand separator
                 OutlinedTextField(
                     value = uiState.price,
-                    onValueChange = { viewModel.onEvent(ProductFormUiEvent.PriceChanged(it)) },
+                    onValueChange = { input ->
+                        val raw = input.filter { it.isDigit() }
+                        val formatted = raw.chunked(3).let { // naive grouping from end
+                            if (raw.isEmpty()) "" else raw.reversed().chunked(3).joinToString(".") { it }.reversed()
+                        }
+                        viewModel.onEvent(ProductFormUiEvent.PriceChanged(formatted, raw))
+                    },
                     label = { Text("Harga Jual *") },
                     isError = uiState.priceError != null,
                     supportingText = uiState.priceError?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     prefix = { Text("Rp ") },
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = NoOpTransformation,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
                 // Cost
                 OutlinedTextField(
                     value = uiState.cost,
-                    onValueChange = { viewModel.onEvent(ProductFormUiEvent.CostChanged(it)) },
+                    onValueChange = { input ->
+                        val raw = input.filter { it.isDigit() }
+                        val formatted = if (raw.isEmpty()) "" else raw.reversed().chunked(3).joinToString(".") { it }.reversed()
+                        viewModel.onEvent(ProductFormUiEvent.CostChanged(formatted, raw))
+                    },
                     label = { Text("Harga Modal") },
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     prefix = { Text("Rp ") },
-                    singleLine = true
+                    singleLine = true,
+                    visualTransformation = NoOpTransformation,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
                 Row(
@@ -216,14 +309,61 @@ fun ProductFormScreen(
                     maxLines = 5
                 )
 
-                // Image URL
-                OutlinedTextField(
-                    value = uiState.imageUrl,
-                    onValueChange = { viewModel.onEvent(ProductFormUiEvent.ImageUrlChanged(it)) },
-                    label = { Text("URL Gambar") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                // Image Picker Section
+                Text("Gambar Produk", style = MaterialTheme.typography.titleSmall)
+                val preview = uiState.imagePreviewUri
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        if (preview != null) {
+                            AsyncImage(
+                                model = preview,
+                                contentDescription = "Preview Gambar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.RemoveImage) }, label = { Text("Hapus") })
+                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.PickImage) }, label = { Text("Ganti") })
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { viewModel.onEvent(ProductFormUiEvent.PickImage) },
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(48.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("Pilih / Ambil Gambar", color = MaterialTheme.colorScheme.outline)
+                            }
+                        }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = onPickImage) {
+                        Icon(Icons.Default.Image, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Galeri")
+                    }
+                    OutlinedButton(onClick = onCaptureImage) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Kamera")
+                    }
+                }
 
                 // Active Status
                 Row(
@@ -264,4 +404,3 @@ fun ProductFormScreen(
         }
     }
 }
-
