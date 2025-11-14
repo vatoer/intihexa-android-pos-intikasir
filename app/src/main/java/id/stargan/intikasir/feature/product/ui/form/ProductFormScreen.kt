@@ -25,11 +25,23 @@ fun ProductFormScreen(
     viewModel: ProductFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Handle navigation back on success
     LaunchedEffect(uiState.saveSuccess) {
         if (uiState.saveSuccess) {
             onNavigateBack()
+        }
+    }
+
+    // Handle error messages
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Long
+            )
+            viewModel.onEvent(ProductFormUiEvent.DismissError)
         }
     }
 
@@ -51,20 +63,7 @@ fun ProductFormScreen(
             )
         },
         snackbarHost = {
-            if (uiState.error != null) {
-                Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    action = {
-                        TextButton(
-                            onClick = { viewModel.onEvent(ProductFormUiEvent.DismissError) }
-                        ) {
-                            Text("OK")
-                        }
-                    }
-                ) {
-                    Text(uiState.error ?: "")
-                }
-            }
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
@@ -81,6 +80,7 @@ fun ProductFormScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
+                    .imePadding() // Add this to handle keyboard padding
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
