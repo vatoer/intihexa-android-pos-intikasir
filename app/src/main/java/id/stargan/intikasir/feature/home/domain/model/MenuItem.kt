@@ -22,11 +22,25 @@ data class MenuItem(
 object MenuItems {
     val items = listOf(
         MenuItem(
+            id = "cashier",
+            title = "Kasir",
+            icon = Icons.Filled.PointOfSale,
+            route = "cashier",
+            description = "Halaman kasir"
+        ),
+        MenuItem(
             id = "products",
             title = "Produk",
             icon = Icons.Filled.ShoppingBag,
             route = ProductRoutes.PRODUCT_LIST,
             description = "Kelola produk"
+        ),
+        MenuItem(
+            id = "categories",
+            title = "Kategori",
+            icon = Icons.Filled.Category,
+            route = ProductRoutes.CATEGORY_MANAGEMENT,
+            description = "Kelola kategori"
         ),
         MenuItem(
             id = "history",
@@ -56,13 +70,7 @@ object MenuItems {
             route = "print_receipt",
             description = "Cetak ulang resi"
         ),
-        MenuItem(
-            id = "cashier",
-            title = "Kasir",
-            icon = Icons.Filled.PointOfSale,
-            route = "cashier",
-            description = "Halaman kasir"
-        ),
+
         MenuItem(
             id = "settings",
             title = "Pengaturan",

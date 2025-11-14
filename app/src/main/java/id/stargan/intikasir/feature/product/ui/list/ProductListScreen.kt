@@ -219,7 +219,7 @@ private fun ProductListTopBar(
 
                 IconButton(onClick = onFilterClick) {
                     Icon(
-                        imageVector = Icons.Default.FilterList,
+                        imageVector = Icons.Default.FilterAlt,
                         contentDescription = "Filter"
                     )
                 }
