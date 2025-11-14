@@ -49,16 +49,36 @@ fun StoreSettingsScreen(
     fun launchCrop(input: Uri) {
         val dest = Uri.fromFile(File(context.cacheDir, "logo_crop_${System.currentTimeMillis()}.jpg"))
         val options = UCrop.Options().apply {
+            // Quality & behavior
             setCompressionQuality(85)
             setHideBottomControls(false)
             setFreeStyleCropEnabled(false)
+
+            // Colors - toolbar
             setToolbarColor(context.getColor(android.R.color.black))
             setStatusBarColor(context.getColor(android.R.color.black))
             setToolbarWidgetColor(context.getColor(android.R.color.white))
+
+            // Colors - crop frame
             setActiveControlsWidgetColor(context.getColor(android.R.color.holo_green_dark))
+            setRootViewBackgroundColor(context.getColor(android.R.color.black))
+            setDimmedLayerColor(context.getColor(android.R.color.black))
+
+            // Toolbar text
             setToolbarTitle("Crop Logo Toko")
+            setToolbarCancelDrawable(android.R.drawable.ic_menu_close_clear_cancel)
+            setToolbarCropDrawable(android.R.drawable.ic_menu_save)
+
+            // Crop frame display
             setShowCropFrame(true)
             setShowCropGrid(true)
+            setCropGridStrokeWidth(2)
+            setCropGridColor(context.getColor(android.R.color.white))
+            setCropFrameColor(context.getColor(android.R.color.white))
+
+            // Image settings
+            setCircleDimmedLayer(false)
+            setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
         }
         val intent = UCrop.of(input, dest)
             .withAspectRatio(1f, 1f)

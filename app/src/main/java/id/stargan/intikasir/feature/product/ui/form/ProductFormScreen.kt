@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.yalantis.ucrop.UCrop
 import android.net.Uri
 import java.io.File
@@ -57,6 +58,7 @@ fun ProductFormScreen(
     val cropLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val output = result.data?.let { UCrop.getOutput(it) }
+            // Fallback: if output is null, we can’t do much; UCrop should return it properly. No-op otherwise.
             output?.let { viewModel.onEvent(ProductFormUiEvent.ImageCropped(it)) }
         }
     }
@@ -64,18 +66,39 @@ fun ProductFormScreen(
     fun launchCrop(input: Uri) {
         val dest = Uri.fromFile(File(context.cacheDir, "crop_${System.currentTimeMillis()}.jpg"))
         val options = UCrop.Options().apply {
+            // Quality & behavior
             setCompressionQuality(85)
             setHideBottomControls(false)
             setFreeStyleCropEnabled(false)
+
+            // Colors - toolbar (these override theme for UCrop internals)
             setToolbarColor(context.getColor(android.R.color.black))
             setStatusBarColor(context.getColor(android.R.color.black))
             setToolbarWidgetColor(context.getColor(android.R.color.white))
+
+            // Colors - crop frame
             setActiveControlsWidgetColor(context.getColor(android.R.color.holo_green_dark))
+            setRootViewBackgroundColor(context.getColor(android.R.color.black))
             setDimmedLayerColor(context.getColor(android.R.color.black))
+
+            // Toolbar text
             setToolbarTitle("Crop Gambar")
+            setToolbarCancelDrawable(android.R.drawable.ic_menu_close_clear_cancel)
+            setToolbarCropDrawable(android.R.drawable.ic_menu_save)
+
+            // Crop frame display
             setShowCropFrame(true)
             setShowCropGrid(true)
             setCropGridStrokeWidth(2)
+            setCropGridColor(context.getColor(android.R.color.white))
+            setCropFrameColor(context.getColor(android.R.color.white))
+
+            // Image settings
+            setCircleDimmedLayer(false)
+            setCompressionFormat(android.graphics.Bitmap.CompressFormat.JPEG)
+
+            // No rounded corners for cropped image
+            withMaxResultSize(1080, 1080)
         }
         val intent = UCrop.of(input, dest)
             .withAspectRatio(1f, 1f)
@@ -322,7 +345,10 @@ fun ProductFormScreen(
                     Box(Modifier.fillMaxSize()) {
                         if (preview != null) {
                             AsyncImage(
-                                model = preview,
+                                model = ImageRequest.Builder(context)
+                                    .data(preview)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = "Preview Gambar",
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
