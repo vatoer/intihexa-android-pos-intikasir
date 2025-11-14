@@ -8,7 +8,9 @@ import id.stargan.intikasir.domain.model.Category
 data class CategoryManagementUiState(
     val categories: List<Category> = emptyList(),
     val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val showDeleteDialog: Boolean = false,
@@ -41,5 +43,6 @@ sealed class CategoryManagementUiEvent {
     data object SaveCategory : CategoryManagementUiEvent()
     data object ConfirmDelete : CategoryManagementUiEvent()
     data object DismissError : CategoryManagementUiEvent()
+    data object DismissSuccess : CategoryManagementUiEvent()
 }
 

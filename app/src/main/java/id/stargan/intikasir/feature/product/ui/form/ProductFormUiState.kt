@@ -50,6 +50,8 @@ sealed class ProductFormUiEvent {
     data class MinStockChanged(val minStock: String) : ProductFormUiEvent()
     data class ImageUrlChanged(val imageUrl: String) : ProductFormUiEvent()
     data class ActiveChanged(val isActive: Boolean) : ProductFormUiEvent()
+    data object ScanBarcode : ProductFormUiEvent()
+    data object PickImage : ProductFormUiEvent()
     data object SaveProduct : ProductFormUiEvent()
     data object DismissError : ProductFormUiEvent()
     data object NavigateBack : ProductFormUiEvent()

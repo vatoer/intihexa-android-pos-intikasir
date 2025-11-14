@@ -91,6 +91,9 @@ class CategoryManagementViewModel @Inject constructor(
             is CategoryManagementUiEvent.DismissError -> {
                 _uiState.update { it.copy(error = null) }
             }
+            is CategoryManagementUiEvent.DismissSuccess -> {
+                _uiState.update { it.copy(successMessage = null) }
+            }
         }
     }
 
@@ -129,6 +132,8 @@ class CategoryManagementViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true) }
+
             try {
                 val category = Category(
                     id = state.selectedCategory?.id ?: UUID.randomUUID().toString(),
@@ -146,14 +151,22 @@ class CategoryManagementViewModel @Inject constructor(
 
                 _uiState.update {
                     it.copy(
+                        isSaving = false,
                         showAddDialog = false,
                         showEditDialog = false,
-                        selectedCategory = null
+                        selectedCategory = null,
+                        successMessage = if (state.selectedCategory != null)
+                            "Kategori berhasil diperbarui"
+                        else
+                            "Kategori berhasil ditambahkan"
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = "Gagal menyimpan kategori: ${e.message}")
+                    it.copy(
+                        isSaving = false,
+                        error = "Gagal menyimpan kategori: ${e.message}"
+                    )
                 }
             }
         }

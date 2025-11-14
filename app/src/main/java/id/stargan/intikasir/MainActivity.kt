@@ -11,6 +11,7 @@ import id.stargan.intikasir.feature.auth.navigation.AuthRoutes
 import id.stargan.intikasir.feature.auth.navigation.authNavGraph
 import id.stargan.intikasir.feature.home.navigation.HomeRoutes
 import id.stargan.intikasir.feature.home.navigation.homeNavGraph
+import id.stargan.intikasir.feature.product.navigation.productNavGraph
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -59,6 +60,14 @@ fun IntiKasirApp() {
                     popUpTo(0) { inclusive = true }
                     launchSingleTop = true
                 }
+            }
+        )
+
+        // Product Navigation Graph
+        productNavGraph(
+            navController = navController,
+            onNavigateBack = {
+                navController.popBackStack()
             }
         )
     }

@@ -64,6 +64,12 @@ class ProductFormViewModel @Inject constructor(
             is ProductFormUiEvent.ActiveChanged -> {
                 _uiState.update { it.copy(isActive = event.isActive) }
             }
+            is ProductFormUiEvent.ScanBarcode -> {
+                // Handled by UI - will trigger barcode scanner
+            }
+            is ProductFormUiEvent.PickImage -> {
+                // Handled by UI - will trigger image picker
+            }
             is ProductFormUiEvent.SaveProduct -> {
                 saveProduct()
             }

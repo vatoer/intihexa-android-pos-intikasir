@@ -3,6 +3,7 @@ package id.stargan.intikasir.feature.home.domain.model
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import id.stargan.intikasir.feature.product.navigation.ProductRoutes
 
 /**
  * Data class untuk menu item di home screen
@@ -24,7 +25,7 @@ object MenuItems {
             id = "products",
             title = "Produk",
             icon = Icons.Filled.ShoppingBag,
-            route = "products",
+            route = ProductRoutes.PRODUCT_LIST,
             description = "Kelola produk"
         ),
         MenuItem(

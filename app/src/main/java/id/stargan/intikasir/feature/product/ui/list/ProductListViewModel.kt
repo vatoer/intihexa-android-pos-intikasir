@@ -3,6 +3,8 @@ package id.stargan.intikasir.feature.product.ui.list
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.stargan.intikasir.domain.model.UserRole
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
 import id.stargan.intikasir.feature.product.domain.usecase.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -14,15 +16,27 @@ class ProductListViewModel @Inject constructor(
     private val searchProductsUseCase: SearchProductsUseCase,
     private val getLowStockProductsUseCase: GetLowStockProductsUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
-    private val getAllCategoriesUseCase: GetAllCategoriesUseCase
+    private val getAllCategoriesUseCase: GetAllCategoriesUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductListUiState())
     val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
 
     init {
+        checkUserRole()
         loadCategories()
         loadProducts()
+    }
+
+    private fun checkUserRole() {
+        viewModelScope.launch {
+            getCurrentUserUseCase().collect { user ->
+                _uiState.update {
+                    it.copy(isAdmin = user?.role == UserRole.ADMIN)
+                }
+            }
+        }
     }
 
     fun onEvent(event: ProductListUiEvent) {

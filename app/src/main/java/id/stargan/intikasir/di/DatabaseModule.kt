@@ -23,7 +23,7 @@ object DatabaseModule {
             IntiKasirDatabase::class.java,
             IntiKasirDatabase.DATABASE_NAME
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 

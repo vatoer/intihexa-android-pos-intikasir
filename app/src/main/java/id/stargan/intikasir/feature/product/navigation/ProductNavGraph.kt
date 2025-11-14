@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import id.stargan.intikasir.feature.product.ui.category.CategoryManagementScreen
+import id.stargan.intikasir.feature.product.ui.detail.ProductDetailScreen
 import id.stargan.intikasir.feature.product.ui.form.ProductFormScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
 
@@ -26,7 +27,7 @@ fun NavGraphBuilder.productNavGraph(
         composable(route = ProductRoutes.PRODUCT_LIST) {
             ProductListScreen(
                 onProductClick = { productId ->
-                    navController.navigate(ProductRoutes.productFormWithId(productId))
+                    navController.navigate(ProductRoutes.productDetail(productId))
                 },
                 onAddProductClick = {
                     navController.navigate(ProductRoutes.PRODUCT_FORM)
@@ -35,6 +36,23 @@ fun NavGraphBuilder.productNavGraph(
                     navController.navigate(ProductRoutes.CATEGORY_MANAGEMENT)
                 },
                 onBackClick = onNavigateBack
+            )
+        }
+
+        // Product Detail Screen
+        composable(
+            route = ProductRoutes.PRODUCT_DETAIL,
+            arguments = listOf(
+                navArgument("productId") { type = NavType.StringType }
+            )
+        ) {
+            ProductDetailScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onEditProduct = { productId ->
+                    navController.navigate(ProductRoutes.productFormWithId(productId))
+                }
             )
         }
 

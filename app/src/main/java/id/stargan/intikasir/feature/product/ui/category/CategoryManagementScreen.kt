@@ -56,9 +56,12 @@ fun CategoryManagementScreen(
             }
         },
         snackbarHost = {
+            // Error Snackbar
             if (uiState.error != null) {
                 Snackbar(
                     modifier = Modifier.padding(16.dp),
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     action = {
                         TextButton(
                             onClick = { viewModel.onEvent(CategoryManagementUiEvent.DismissError) }
@@ -68,6 +71,34 @@ fun CategoryManagementScreen(
                     }
                 ) {
                     Text(uiState.error ?: "")
+                }
+            }
+
+            // Success Snackbar
+            if (uiState.successMessage != null) {
+                Snackbar(
+                    modifier = Modifier.padding(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    action = {
+                        TextButton(
+                            onClick = { viewModel.onEvent(CategoryManagementUiEvent.DismissSuccess) }
+                        ) {
+                            Text("OK")
+                        }
+                    }
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(uiState.successMessage ?: "")
+                    }
                 }
             }
         }
@@ -120,6 +151,7 @@ fun CategoryManagementScreen(
             color = uiState.categoryColor,
             icon = uiState.categoryIcon,
             nameError = uiState.nameError,
+            isSaving = uiState.isSaving,
             onNameChange = { viewModel.onEvent(CategoryManagementUiEvent.NameChanged(it)) },
             onDescriptionChange = { viewModel.onEvent(CategoryManagementUiEvent.DescriptionChanged(it)) },
             onColorChange = { viewModel.onEvent(CategoryManagementUiEvent.ColorChanged(it)) },
@@ -288,6 +320,7 @@ private fun CategoryFormDialog(
     color: String,
     icon: String,
     nameError: String?,
+    isSaving: Boolean = false,
     onNameChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onColorChange: (String) -> Unit,
@@ -388,12 +421,26 @@ private fun CategoryFormDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onSave) {
-                Text("Simpan")
+            Button(
+                onClick = onSave,
+                enabled = !isSaving
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (isSaving) "Menyimpan..." else "Simpan")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving
+            ) {
                 Text("Batal")
             }
         }

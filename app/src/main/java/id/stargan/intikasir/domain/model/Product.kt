@@ -49,7 +49,8 @@ data class Product(
         get() = formatRupiah(cost ?: 0.0)
 
     private fun formatRupiah(amount: Double): String {
-        val format = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        val locale = Locale.Builder().setLanguage("id").setRegion("ID").build()
+        val format = NumberFormat.getCurrencyInstance(locale)
         return format.format(amount).replace("Rp", "Rp ")
     }
 }

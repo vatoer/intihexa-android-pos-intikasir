@@ -418,7 +418,8 @@ private fun CartSummary(
     total: Double,
     modifier: Modifier = Modifier
 ) {
-    fun formatCurrency(amount: Double) = "Rp ${String.format(Locale("id", "ID"), "%,.0f", amount)}"
+    val locale = Locale.Builder().setLanguage("id").setRegion("ID").build()
+    fun formatCurrency(amount: Double) = "Rp ${String.format(locale, "%,.0f", amount)}"
 
     Card(
         modifier = modifier.fillMaxWidth(),

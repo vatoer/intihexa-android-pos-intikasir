@@ -28,7 +28,7 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE barcode = :barcode AND isDeleted = 0 LIMIT 1")
     suspend fun getProductByBarcode(barcode: String): ProductEntity?
 
-    @Query("SELECT * FROM products WHERE trackStock = 1 AND stock <= lowStockThreshold AND isDeleted = 0 AND isActive = 1")
+    @Query("SELECT * FROM products WHERE stock <= lowStockThreshold AND stock > 0 AND isDeleted = 0 AND isActive = 1")
     fun getLowStockProducts(): Flow<List<ProductEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
