@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.domain.model.UserRole
 import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
 import id.stargan.intikasir.feature.product.domain.usecase.*
+import id.stargan.intikasir.feature.product.domain.model.ProductFilter
+import id.stargan.intikasir.feature.product.domain.model.ProductSortBy
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -13,8 +15,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductListViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
-    private val searchProductsUseCase: SearchProductsUseCase,
-    private val getLowStockProductsUseCase: GetLowStockProductsUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
     private val getAllCategoriesUseCase: GetAllCategoriesUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase
@@ -108,21 +108,67 @@ class ProductListViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                val flow = when {
-                    _uiState.value.showLowStockOnly -> getLowStockProductsUseCase()
-                    else -> getAllProductsUseCase()
-                }
+                // Base flow: all products (we will apply low-stock via filter object now)
+                getAllProductsUseCase().collect { products ->
+                    val filter = _uiState.value.currentFilter
+                    val sort = _uiState.value.currentSort
 
-                flow.collect { products ->
-                    val filtered = if (_uiState.value.selectedCategory != null) {
-                        products.filter { it.categoryId == _uiState.value.selectedCategory?.id }
-                    } else {
-                        products
+                    var working = products
+
+                    // Category
+                    filter.categoryId?.let { catId ->
+                        working = working.filter { it.categoryId == catId }
+                    }
+
+                    // In stock only
+                    if (filter.inStockOnly) {
+                        working = working.filter { it.stock > 0 }
+                    }
+
+                    // Low stock only
+                    if (filter.lowStockOnly) {
+                        working = working.filter { it.isLowStock }
+                    }
+
+                    // Active only
+                    if (filter.activeOnly) {
+                        working = working.filter { it.isActive }
+                    }
+
+                    // Price range
+                    filter.minPrice?.let { minP ->
+                        working = working.filter { it.price >= minP }
+                    }
+                    filter.maxPrice?.let { maxP ->
+                        working = working.filter { it.price <= maxP }
+                    }
+
+                    // Apply search query if present (combine with previous logic)
+                    val query = _uiState.value.searchQuery.trim()
+                    if (query.isNotEmpty()) {
+                        val qLower = query.lowercase()
+                        working = working.filter {
+                            it.name.lowercase().contains(qLower) ||
+                                (it.sku?.lowercase()?.contains(qLower) == true) ||
+                                (it.barcode?.lowercase()?.contains(qLower) == true)
+                        }
+                    }
+
+                    // Apply sorting
+                    working = when (sort) {
+                        ProductSortBy.NAME_ASC -> working.sortedBy { it.name.lowercase() }
+                        ProductSortBy.NAME_DESC -> working.sortedByDescending { it.name.lowercase() }
+                        ProductSortBy.PRICE_ASC -> working.sortedBy { it.price }
+                        ProductSortBy.PRICE_DESC -> working.sortedByDescending { it.price }
+                        ProductSortBy.STOCK_ASC -> working.sortedBy { it.stock }
+                        ProductSortBy.STOCK_DESC -> working.sortedByDescending { it.stock }
+                        ProductSortBy.NEWEST -> working.sortedByDescending { it.createdAt }
+                        ProductSortBy.OLDEST -> working.sortedBy { it.createdAt }
                     }
 
                     _uiState.update {
                         it.copy(
-                            products = filtered,
+                            products = working,
                             isLoading = false,
                             error = null
                         )
@@ -130,10 +176,7 @@ class ProductListViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Terjadi kesalahan"
-                    )
+                    it.copy(isLoading = false, error = e.message ?: "Terjadi kesalahan")
                 }
             }
         }
@@ -144,11 +187,9 @@ class ProductListViewModel @Inject constructor(
             loadProducts()
             return
         }
-
         viewModelScope.launch {
-            searchProductsUseCase(query).collect { products ->
-                _uiState.update { it.copy(products = products) }
-            }
+            _uiState.update { it.copy(searchQuery = query) }
+            loadProducts()
         }
     }
 

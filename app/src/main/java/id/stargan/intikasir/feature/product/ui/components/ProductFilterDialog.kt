@@ -8,9 +8,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.domain.model.Category
 import id.stargan.intikasir.feature.product.domain.model.ProductFilter
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.TextButton
 
 /**
  * Filter Dialog untuk product list
@@ -27,6 +32,14 @@ fun ProductFilterDialog(
     var inStockOnly by remember { mutableStateOf(currentFilter.inStockOnly) }
     var lowStockOnly by remember { mutableStateOf(currentFilter.lowStockOnly) }
     var activeOnly by remember { mutableStateOf(currentFilter.activeOnly) }
+    var categorySearch by remember { mutableStateOf("") }
+    var showCategories by remember { mutableStateOf(true) }
+    var minPriceText by remember { mutableStateOf(currentFilter.minPrice?.toInt()?.toString() ?: "") }
+    var maxPriceText by remember { mutableStateOf(currentFilter.maxPrice?.toInt()?.toString() ?: "") }
+
+    val filteredCategories = remember(categorySearch, categories) {
+        if (categorySearch.isBlank()) categories else categories.filter { it.name.contains(categorySearch, ignoreCase = true) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -39,126 +52,125 @@ fun ProductFilterDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Category Filter
-                Text(
-                    text = "Kategori",
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                Column(modifier = Modifier.selectableGroup()) {
-                    // All categories option
-                    Row(
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Kategori", style = MaterialTheme.typography.titleSmall)
+                    TextButton(onClick = { showCategories = !showCategories }) {
+                        Text(if (showCategories) "Sembunyikan" else "Tampilkan")
+                    }
+                }
+                if (showCategories) {
+                    OutlinedTextField(
+                        value = categorySearch,
+                        onValueChange = { categorySearch = it },
+                        placeholder = { Text("Cari kategori...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    // Category list scrollable with max height
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .selectable(
-                                selected = selectedCategoryId == null,
-                                onClick = { selectedCategoryId = null },
-                                role = Role.RadioButton
-                            )
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .heightIn(max = 240.dp)
+                            .selectableGroup(),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        RadioButton(
-                            selected = selectedCategoryId == null,
-                            onClick = null
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Semua Kategori")
-                    }
-
-                    // Individual categories
-                    categories.forEach { category ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = selectedCategoryId == category.id,
-                                    onClick = { selectedCategoryId = category.id },
-                                    role = Role.RadioButton
-                                )
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedCategoryId == category.id,
-                                onClick = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(category.name)
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = selectedCategoryId == null,
+                                        onClick = { selectedCategoryId = null },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = selectedCategoryId == null, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Semua Kategori")
+                            }
+                        }
+                        items(filteredCategories, key = { it.id }) { category ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = selectedCategoryId == category.id,
+                                        onClick = { selectedCategoryId = category.id },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = selectedCategoryId == category.id, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(category.name)
+                            }
                         }
                     }
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 // Stock Filters
-                Text(
-                    text = "Stok",
-                    style = MaterialTheme.typography.titleSmall
-                )
-
+                Text(text = "Stok", style = MaterialTheme.typography.titleSmall)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = inStockOnly,
-                        onCheckedChange = { inStockOnly = it }
-                    )
+                    Checkbox(checked = inStockOnly, onCheckedChange = { inStockOnly = it })
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Hanya yang tersedia")
                 }
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = lowStockOnly,
-                        onCheckedChange = { lowStockOnly = it }
-                    )
+                    Checkbox(checked = lowStockOnly, onCheckedChange = { lowStockOnly = it })
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Stok menipis")
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 // Active Filter
+                Text(text = "Status", style = MaterialTheme.typography.titleSmall)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = activeOnly,
-                        onCheckedChange = { activeOnly = it }
-                    )
+                    Checkbox(checked = activeOnly, onCheckedChange = { activeOnly = it })
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Hanya produk aktif")
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onFilterChanged(
-                        ProductFilter(
-                            categoryId = selectedCategoryId,
-                            inStockOnly = inStockOnly,
-                            lowStockOnly = lowStockOnly,
-                            activeOnly = activeOnly
-                        )
+            TextButton(onClick = {
+                val minPrice = minPriceText.toDoubleOrNull()
+                val maxPrice = maxPriceText.toDoubleOrNull()
+
+                onFilterChanged(
+                    ProductFilter(
+                        categoryId = selectedCategoryId,
+                        inStockOnly = inStockOnly,
+                        lowStockOnly = lowStockOnly,
+                        activeOnly = activeOnly,
+                        minPrice = minPrice,
+                        maxPrice = maxPrice
                     )
-                    onDismiss()
-                }
-            ) {
-                Text("Terapkan")
-            }
+                )
+                onDismiss()
+            }) { Text("Terapkan") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
-        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
         modifier = modifier
     )
 }
-

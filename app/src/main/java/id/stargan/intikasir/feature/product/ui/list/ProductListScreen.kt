@@ -2,6 +2,7 @@ package id.stargan.intikasir.feature.product.ui.list
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -19,6 +21,7 @@ import id.stargan.intikasir.feature.product.ui.components.ProductListItem
 import id.stargan.intikasir.feature.product.ui.components.ProductSortDialog
 import id.stargan.intikasir.feature.product.ui.list.ProductListUiState
 import id.stargan.intikasir.feature.product.ui.list.ProductListUiEvent
+
 /**
  * Product List Screen
  * Menampilkan daftar produk dengan filter, sort, dan search
@@ -37,24 +40,38 @@ fun ProductListScreen(
 
     Scaffold(
         topBar = {
-            ProductListTopBar(
-                searchQuery = uiState.searchQuery,
-                onSearchQueryChange = {
-                    viewModel.onEvent(ProductListUiEvent.SearchQueryChanged(it))
-                },
-                onFilterClick = {
-                    viewModel.onEvent(ProductListUiEvent.ShowFilterDialog)
-                },
-                onSortClick = {
-                    viewModel.onEvent(ProductListUiEvent.ShowSortDialog)
-                },
-                onManageCategoriesClick = {
-                    viewModel.onEvent(ProductListUiEvent.ManageCategoriesClicked)
-                    onManageCategoriesClick()
-                },
-                onBackClick = onBackClick,
-                isAdmin = uiState.isAdmin
-            )
+            Column {
+                ProductListTopBar(
+                    searchQuery = uiState.searchQuery,
+                    onSearchQueryChange = {
+                        viewModel.onEvent(ProductListUiEvent.SearchQueryChanged(it))
+                    },
+                    onFilterClick = {
+                        viewModel.onEvent(ProductListUiEvent.ShowFilterDialog)
+                    },
+                    onSortClick = {
+                        viewModel.onEvent(ProductListUiEvent.ShowSortDialog)
+                    },
+                    onManageCategoriesClick = {
+                        viewModel.onEvent(ProductListUiEvent.ManageCategoriesClicked)
+                        onManageCategoriesClick()
+                    },
+                    onBackClick = onBackClick,
+                    isAdmin = uiState.isAdmin
+                )
+
+                // Active Filter Chips
+                ActiveFilterChips(
+                    uiState = uiState,
+                    onClearFilter = { viewModel.onEvent(ProductListUiEvent.FilterChanged(id.stargan.intikasir.feature.product.domain.model.ProductFilter())) },
+                    onClearCategoryFilter = {
+                        viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(categoryId = null)))
+                    },
+                    onClearPriceFilter = {
+                        viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(minPrice = null, maxPrice = null)))
+                    }
+                )
+            }
         },
         floatingActionButton = {
             if (uiState.isAdmin) {
@@ -238,6 +255,130 @@ private fun ProductListTopBar(
 }
 
 /**
+ * Active Filter Chips - Shows currently active filters
+ */
+@Composable
+private fun ActiveFilterChips(
+    uiState: ProductListUiState,
+    onClearFilter: () -> Unit,
+    onClearCategoryFilter: () -> Unit,
+    onClearPriceFilter: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val filter = uiState.currentFilter
+    val hasActiveFilters = filter.categoryId != null ||
+                          filter.inStockOnly ||
+                          filter.lowStockOnly ||
+                          !filter.activeOnly ||
+                          filter.minPrice != null ||
+                          filter.maxPrice != null
+
+    if (hasActiveFilters) {
+        LazyRow(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Category chip
+            filter.categoryId?.let { catId ->
+                val categoryName = uiState.categories.find { it.id == catId }?.name ?: "Kategori"
+                item {
+                    FilterChip(
+                        selected = true,
+                        onClick = onClearCategoryFilter,
+                        label = { Text(categoryName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Hapus filter",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+
+            // In Stock chip
+            if (filter.inStockOnly) {
+                item {
+                    FilterChip(
+                        selected = true,
+                        onClick = { /* handled by clear all */ },
+                        label = { Text("Tersedia") }
+                    )
+                }
+            }
+
+            // Low Stock chip
+            if (filter.lowStockOnly) {
+                item {
+                    FilterChip(
+                        selected = true,
+                        onClick = { /* handled by clear all */ },
+                        label = { Text("Stok Menipis") }
+                    )
+                }
+            }
+
+            // Inactive products chip
+            if (!filter.activeOnly) {
+                item {
+                    FilterChip(
+                        selected = true,
+                        onClick = { /* handled by clear all */ },
+                        label = { Text("Termasuk Nonaktif") }
+                    )
+                }
+            }
+
+            // Price range chip
+            if (filter.minPrice != null || filter.maxPrice != null) {
+                item {
+                    val priceText = buildString {
+                        append("Rp ")
+                        if (filter.minPrice != null && filter.maxPrice != null) {
+                            append("${filter.minPrice.toInt()}-${filter.maxPrice.toInt()}")
+                        } else if (filter.minPrice != null) {
+                            append("≥ ${filter.minPrice.toInt()}")
+                        } else {
+                            append("≤ ${filter.maxPrice!!.toInt()}")
+                        }
+                    }
+                    FilterChip(
+                        selected = true,
+                        onClick = onClearPriceFilter,
+                        label = { Text(priceText) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Hapus filter harga",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+
+            // Clear all filters
+            item {
+                AssistChip(
+                    onClick = onClearFilter,
+                    label = { Text("Hapus Semua") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
  * Empty Content
  */
 @Composable
@@ -305,5 +446,3 @@ private fun ErrorContent(
         }
     }
 }
-
-
