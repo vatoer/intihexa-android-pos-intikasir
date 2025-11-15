@@ -38,7 +38,7 @@ fun NavGraphBuilder.homeNavGraph(
             onMenuClick = { route ->
                 if (route == "cashier") {
                     // Navigate to cashier route with optional transactionId param omitted
-                    navController.navigate(HomeRoutes.CASHIER)
+                    navController.navigate(PosRoutes.POS)
                 } else {
                     navController.navigate(route)
                 }
@@ -101,7 +101,7 @@ fun NavGraphBuilder.homeNavGraph(
 
     // POS Screen (Kasir) - Reactive version
     composable(
-        route = HomeRoutes.CASHIER + "?transactionId={transactionId}",
+        route = PosRoutes.POS_WITH_ID,
         arguments = listOf(
             navArgument("transactionId") {
                 type = NavType.StringType

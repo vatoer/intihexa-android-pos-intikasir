@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.home.domain.model.MenuItems
 import id.stargan.intikasir.feature.home.ui.components.MenuCard
+import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 
 /**
  * Home Screen dengan menu grid
@@ -102,7 +103,13 @@ fun HomeScreen(
                 items(MenuItems.items) { menuItem ->
                     MenuCard(
                         menuItem = menuItem,
-                        onClick = { onMenuClick(menuItem.route) }
+                        onClick = { 
+                            if (menuItem.route == "cashier") {
+                                onMenuClick(PosRoutes.POS)
+                            } else {
+                                onMenuClick(menuItem.route)
+                            }
+                        }
                     )
                 }
             }
@@ -170,4 +177,3 @@ fun HomeScreenPreview() {
         )
     }
 }
-
