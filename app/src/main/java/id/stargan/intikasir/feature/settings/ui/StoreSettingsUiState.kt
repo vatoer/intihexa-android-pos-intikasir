@@ -22,5 +22,5 @@ sealed class StoreSettingsUiEvent {
     data object CaptureLogo : StoreSettingsUiEvent()
     data object DismissError : StoreSettingsUiEvent()
     data object DismissSuccess : StoreSettingsUiEvent()
+    data class Save(val settings: StoreSettings) : StoreSettingsUiEvent()
 }
-

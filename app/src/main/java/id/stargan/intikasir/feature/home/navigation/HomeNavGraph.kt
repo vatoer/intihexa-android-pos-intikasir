@@ -30,6 +30,7 @@ import id.stargan.intikasir.feature.pos.ui.payment.PaymentScreenReactive
 import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
+import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
 import kotlinx.coroutines.launch
 
 /**
@@ -203,18 +204,23 @@ fun NavGraphBuilder.homeNavGraph(
                 val tx = state.transaction ?: return@ReceiptScreen
                 val items = state.transactionItems
                 val settings = settingsState.settings
-                val result = ReceiptPrinter.generateThermalReceiptPdf(
-                    context = context,
-                    settings = settings,
-                    transaction = tx,
-                    items = items
-                )
-                ReceiptPrinter.printOrSave(
-                    context = context,
-                    settings = settings,
-                    pdfUri = result.pdfUri,
-                    jobName = result.fileName
-                )
+                if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
+                    ESCPosPrinter.printReceipt(context, settings, tx, items)
+                } else {
+                    // Thermal PDF
+                    val result = ReceiptPrinter.generateThermalReceiptPdf(
+                        context = context,
+                        settings = settings,
+                        transaction = tx,
+                        items = items
+                    )
+                    ReceiptPrinter.printOrSave(
+                        context = context,
+                        settings = settings,
+                        pdfUri = result.pdfUri,
+                        jobName = result.fileName
+                    )
+                }
             },
             onShare = {
                 val tx = state.transaction ?: return@ReceiptScreen

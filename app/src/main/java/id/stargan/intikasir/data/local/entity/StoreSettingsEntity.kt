@@ -36,6 +36,9 @@ data class StoreSettingsEntity(
     val printerName: String? = null,
     val printerAddress: String? = null, // Bluetooth MAC address
     val printerConnected: Boolean = false,
+    val printFormat: String = "THERMAL", // THERMAL or A4
+    val autoCut: Boolean = true,
+    val useEscPosDirect: Boolean = false, // Direct Bluetooth ESC/POS printing
 
     // Currency
     val currencySymbol: String = "Rp",

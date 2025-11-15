@@ -1,0 +1,14 @@
+package id.stargan.intikasir.feature.settings.domain.usecase
+
+import id.stargan.intikasir.domain.model.StoreSettings
+import id.stargan.intikasir.feature.settings.domain.repository.SettingsRepository
+import javax.inject.Inject
+
+class UpdateStoreSettingsUseCase @Inject constructor(
+    private val repository: SettingsRepository
+) {
+    suspend operator fun invoke(settings: StoreSettings) {
+        repository.updateStoreSettings(settings)
+    }
+}
+

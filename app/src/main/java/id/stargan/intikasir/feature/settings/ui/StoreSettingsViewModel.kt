@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.data.local.image.ImageRepository
+import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.feature.settings.domain.usecase.GetStoreSettingsUseCase
 import id.stargan.intikasir.feature.settings.domain.usecase.UpdateStoreLogoUseCase
+import id.stargan.intikasir.feature.settings.domain.usecase.UpdateStoreSettingsUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,7 +17,8 @@ import javax.inject.Inject
 class StoreSettingsViewModel @Inject constructor(
     private val getStoreSettingsUseCase: GetStoreSettingsUseCase,
     private val updateStoreLogoUseCase: UpdateStoreLogoUseCase,
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    private val updateStoreSettingsUseCase: UpdateStoreSettingsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StoreSettingsUiState())
@@ -112,6 +115,9 @@ class StoreSettingsViewModel @Inject constructor(
             StoreSettingsUiEvent.DismissSuccess -> {
                 _uiState.update { it.copy(successMessage = null) }
             }
+            is StoreSettingsUiEvent.Save -> {
+                saveSettings(event.settings)
+            }
         }
     }
 
@@ -139,5 +145,15 @@ class StoreSettingsViewModel @Inject constructor(
             }
         }
     }
-}
 
+    private fun saveSettings(updated: StoreSettings) {
+        viewModelScope.launch {
+            try {
+                updateStoreSettingsUseCase(updated)
+                _uiState.update { it.copy(successMessage = "Pengaturan tersimpan") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Gagal menyimpan pengaturan: ${e.message}") }
+            }
+        }
+    }
+}
