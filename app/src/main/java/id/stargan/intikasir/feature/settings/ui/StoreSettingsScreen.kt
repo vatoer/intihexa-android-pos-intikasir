@@ -22,21 +22,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
-import androidx.core.content.ContextCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import coil.compose.AsyncImage
-import com.yalantis.ucrop.UCrop
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import kotlinx.coroutines.launch
+import java.io.File
+import java.util.UUID
 import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.data.local.entity.PaymentMethod
-import java.io.File
-import java.util.UUID
-import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+import com.yalantis.ucrop.UCrop
+import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
+import androidx.compose.ui.unit.dp
+import id.stargan.intikasir.feature.settings.ui.components.ReceiptSettingsSection
+import id.stargan.intikasir.feature.settings.ui.components.StoreInfoSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -331,38 +335,17 @@ fun StoreSettingsScreen(
                     }
                 }
 
-                // Store Info Section (Optional - for future enhancement)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Informasi Toko",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                // Store Info Section (Editable)
+                StoreInfoSection(
+                    settings = uiState.settings ?: StoreSettings(),
+                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) }
+                )
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                        InfoRow(
-                            label = "Nama Toko",
-                            value = uiState.settings?.storeName ?: "Belum diatur"
-                        )
-                        InfoRow(
-                            label = "Alamat",
-                            value = uiState.settings?.storeAddress ?: "Belum diatur"
-                        )
-                        InfoRow(
-                            label = "Telepon",
-                            value = uiState.settings?.storePhone ?: "Belum diatur"
-                        )
-                    }
-                }
+                // Receipt Settings Section (Header/Footer)
+                ReceiptSettingsSection(
+                    settings = uiState.settings ?: StoreSettings(),
+                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) }
+                )
 
                 // Printing Settings Section
                 Card(
