@@ -57,5 +57,10 @@ interface ProductDao {
 
     @Query("SELECT * FROM products WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedProducts(): List<ProductEntity>
-}
 
+    @Query("SELECT * FROM products WHERE id IN (:ids)")
+    suspend fun getProductsByIds(ids: List<String>): List<ProductEntity>
+
+    @Query("UPDATE products SET stock = stock - :qty WHERE id = :productId AND stock >= :qty")
+    suspend fun decrementStock(productId: String, qty: Int)
+}

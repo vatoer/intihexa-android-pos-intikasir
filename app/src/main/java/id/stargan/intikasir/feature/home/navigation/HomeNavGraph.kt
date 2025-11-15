@@ -14,6 +14,8 @@ import androidx.navigation.compose.composable
 import id.stargan.intikasir.feature.home.ui.HomeScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
 import id.stargan.intikasir.feature.product.navigation.ProductRoutes
+import id.stargan.intikasir.feature.settings.ui.StoreSettingsScreen
+import id.stargan.intikasir.feature.pos.ui.PosScreen
 
 /**
  * Navigation graph untuk Home feature
@@ -83,12 +85,21 @@ fun NavGraphBuilder.homeNavGraph(
         PlaceholderScreen(title = "Cetak Resi", onBack = { navController.navigateUp() })
     }
 
+    // POS Screen (Kasir)
     composable(HomeRoutes.CASHIER) {
-        PlaceholderScreen(title = "Kasir", onBack = { navController.navigateUp() })
+        PosScreen(
+            onPay = { total ->
+                // Navigate back to home after payment
+                navController.navigateUp()
+            }
+        )
     }
 
+    // Store Settings Screen
     composable(HomeRoutes.SETTINGS) {
-        PlaceholderScreen(title = "Pengaturan", onBack = { navController.navigateUp() })
+        StoreSettingsScreen(
+            onNavigateBack = { navController.navigateUp() }
+        )
     }
 }
 
@@ -130,4 +141,3 @@ fun PlaceholderScreen(
         }
     }
 }
-
