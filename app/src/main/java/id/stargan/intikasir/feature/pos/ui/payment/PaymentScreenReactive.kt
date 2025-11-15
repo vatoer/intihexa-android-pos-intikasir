@@ -1,8 +1,11 @@
 package id.stargan.intikasir.feature.pos.ui.payment
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -33,6 +36,7 @@ fun PaymentScreenReactive(
     val state by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scrollState = rememberScrollState()
     val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
 
     var selectedPaymentMethod by remember { mutableStateOf(PaymentMethod.CASH) }
@@ -127,7 +131,7 @@ fun PaymentScreenReactive(
                         Spacer(Modifier.width(8.dp))
                         Text("Memproses...")
                     } else {
-                        Text("Checkout", style = MaterialTheme.typography.titleMedium)
+                        Text("Bayar", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -138,6 +142,7 @@ fun PaymentScreenReactive(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -167,27 +172,47 @@ fun PaymentScreenReactive(
                 maxLines = 1
             )
 
-            // Payment Method - 2 columns layout
+            // Payment Method - 1x4 horizontal layout with icons
             Text("Metode Pembayaran", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            val methods = remember { PaymentMethod.values().toList() }
-            methods.chunked(2).forEach { rowItems ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rowItems.forEach { method ->
-                        val selected = selectedPaymentMethod == method
-                        OutlinedButton(
-                            onClick = { selectedPaymentMethod = method },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Text(method.name, style = MaterialTheme.typography.bodySmall)
-                        }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PaymentMethod.values().forEach { method ->
+                    val selected = selectedPaymentMethod == method
+                    val icon = when (method) {
+                        PaymentMethod.CASH -> Icons.Default.Payments
+                        PaymentMethod.QRIS -> Icons.Default.QrCode2
+                        PaymentMethod.TRANSFER -> Icons.Default.AccountBalance
+                        PaymentMethod.CARD -> Icons.Default.CreditCard
                     }
-                    if (rowItems.size < 2) {
-                        Spacer(modifier = Modifier.weight(1f))
+
+                    OutlinedButton(
+                        onClick = { selectedPaymentMethod = method },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(64.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = method.name,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                method.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
