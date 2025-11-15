@@ -1,9 +1,6 @@
 package id.stargan.intikasir.feature.pos.ui.payment
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,13 +8,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
-import kotlin.math.ceil
 
 /**
  * Payment Screen - Reactive Version
@@ -39,7 +35,6 @@ fun PaymentScreenReactive(
 
     var selectedPaymentMethod by remember { mutableStateOf(PaymentMethod.CASH) }
     var customCashAmount by remember { mutableStateOf("") }
-    var selectedCashAmount by remember { mutableStateOf<Double?>(null) }
     var notes by remember { mutableStateOf("") }
     var globalDiscount by remember { mutableStateOf("") }
 
@@ -66,19 +61,20 @@ fun PaymentScreenReactive(
     }
 
     // Generate smart cash suggestions
-    val cashSuggestions = remember(state.total) {
+    val cashSuggestions: List<Double> = remember(state.total) {
         generateSmartCashSuggestions(state.total)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pembayaran") },
+                title = { Text("Pembayaran", style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali")
                     }
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -88,9 +84,7 @@ fun PaymentScreenReactive(
                     onClick = {
                         scope.launch {
                             val cashReceived = when (selectedPaymentMethod) {
-                                PaymentMethod.CASH -> {
-                                    selectedCashAmount ?: customCashAmount.toDoubleOrNull() ?: state.total
-                                }
+                                PaymentMethod.CASH -> customCashAmount.toDoubleOrNull() ?: state.total
                                 else -> null
                             }
 
@@ -107,11 +101,11 @@ fun PaymentScreenReactive(
                     enabled = !state.isSaving && state.hasItems,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(12.dp)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                 ) {
                     if (state.isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                         Text("Memproses...")
                     } else {
@@ -126,11 +120,10 @@ fun PaymentScreenReactive(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Order Summary
+            // Order Summary (compact)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -138,13 +131,13 @@ fun PaymentScreenReactive(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         "Ringkasan Pesanan",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
                     HorizontalDivider()
 
@@ -152,8 +145,8 @@ fun PaymentScreenReactive(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Subtotal")
-                        Text(nf.format(state.subtotal).replace("Rp", "Rp "))
+                        Text("Subtotal", style = MaterialTheme.typography.bodySmall)
+                        Text(nf.format(state.subtotal).replace("Rp", "Rp "), style = MaterialTheme.typography.bodySmall)
                     }
 
                     if (state.taxRate > 0) {
@@ -161,8 +154,8 @@ fun PaymentScreenReactive(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("PPN (${(state.taxRate * 100).toInt()}%)")
-                            Text(nf.format(state.tax).replace("Rp", "Rp "))
+                            Text("PPN (${(state.taxRate * 100).toInt()}%)", style = MaterialTheme.typography.bodySmall)
+                            Text(nf.format(state.tax).replace("Rp", "Rp "), style = MaterialTheme.typography.bodySmall)
                         }
                     }
 
@@ -171,7 +164,7 @@ fun PaymentScreenReactive(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Diskon")
+                            Text("Diskon", style = MaterialTheme.typography.bodySmall)
                             Text(
                                 "-${nf.format(state.globalDiscount).replace("Rp", "Rp ")}",
                                 color = MaterialTheme.colorScheme.primary
@@ -186,12 +179,12 @@ fun PaymentScreenReactive(
                     ) {
                         Text(
                             "Total",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             nf.format(state.total).replace("Rp", "Rp "),
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -199,7 +192,7 @@ fun PaymentScreenReactive(
                 }
             }
 
-            // Global Discount
+            // Global Discount (compact)
             OutlinedTextField(
                 value = globalDiscount,
                 onValueChange = {
@@ -210,64 +203,54 @@ fun PaymentScreenReactive(
                 label = { Text("Diskon Global") },
                 prefix = { Text("Rp ") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1
             )
 
-            // Payment Method Selection
-            Text("Metode Pembayaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-            PaymentMethod.values().forEach { method ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = selectedPaymentMethod == method,
-                            onClick = { selectedPaymentMethod = method }
-                        )
-                        .padding(8.dp)
-                ) {
-                    RadioButton(
-                        selected = selectedPaymentMethod == method,
-                        onClick = { selectedPaymentMethod = method }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(method.name, modifier = Modifier.align(androidx.compose.ui.Alignment.CenterVertically))
+            // Payment Method - 2 columns layout
+            Text("Metode Pembayaran", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            val methods = remember { PaymentMethod.values().toList() }
+            methods.chunked(2).forEach { rowItems ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowItems.forEach { method ->
+                        val selected = selectedPaymentMethod == method
+                        OutlinedButton(
+                            onClick = { selectedPaymentMethod = method },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Text(method.name, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    if (rowItems.size < 2) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
 
-            // Cash amount selection (only for CASH method)
+            // Cash received - suggestions as compact buttons that fill the field
             if (selectedPaymentMethod == PaymentMethod.CASH) {
-                Text("Nominal Uang Tunai", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-
-                cashSuggestions.forEach { amount ->
-                    val change = amount - state.total
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selectedCashAmount == amount,
+                Text("Cash diterima", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                // suggestions rows (3 per row to keep compact)
+                cashSuggestions.chunked(3).forEach { suggestionRow ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        suggestionRow.forEach { amount ->
+                            OutlinedButton(
                                 onClick = {
-                                    selectedCashAmount = amount
-                                    customCashAmount = ""
-                                }
-                            )
-                            .padding(8.dp)
-                    ) {
-                        RadioButton(
-                            selected = selectedCashAmount == amount,
-                            onClick = {
-                                selectedCashAmount = amount
-                                customCashAmount = ""
+                                    customCashAmount = amount.toInt().toString()
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 6.dp)
+                            ) {
+                                Text(nf.format(amount).replace("Rp", "Rp "), style = MaterialTheme.typography.bodySmall)
                             }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(nf.format(amount).replace("Rp", "Rp "))
-                            Text(
-                                "Kembali: ${nf.format(change).replace("Rp", "Rp ")}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        }
+                        if (suggestionRow.size < 3) {
+                            repeat(3 - suggestionRow.size) { Spacer(modifier = Modifier.weight(1f)) }
                         }
                     }
                 }
@@ -276,9 +259,8 @@ fun PaymentScreenReactive(
                     value = customCashAmount,
                     onValueChange = {
                         customCashAmount = it.filter { c -> c.isDigit() }
-                        selectedCashAmount = null
                     },
-                    label = { Text("Nominal Lainnya") },
+                    label = { Text("Cash diterima") },
                     prefix = { Text("Rp ") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -293,20 +275,22 @@ fun PaymentScreenReactive(
                         }
                     },
                     isError = (customCashAmount.toDoubleOrNull() ?: 0.0) > 0 &&
-                               (customCashAmount.toDoubleOrNull() ?: 0.0) < state.total
+                               (customCashAmount.toDoubleOrNull() ?: 0.0) < state.total,
+                    maxLines = 1
                 )
             }
 
-            // Notes
+            // Notes (small)
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
                 label = { Text("Catatan (opsional)") },
-                minLines = 2,
-                maxLines = 3,
+                minLines = 1,
+                maxLines = 2,
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
 }
 
+// Helpers removed: use generateSmartCashSuggestions from PaymentScreen.kt to avoid duplicate
