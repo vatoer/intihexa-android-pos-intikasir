@@ -56,7 +56,9 @@ class SettingsRepositoryImpl @Inject constructor(
         currencySymbol = currencySymbol,
         currencyCode = currencyCode,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        paperWidthMm = paperWidthMm,
+        paperCharPerLine = paperCharPerLine
     )
 
     private fun StoreSettings.toEntity() = StoreSettingsEntity(
@@ -81,7 +83,8 @@ class SettingsRepositoryImpl @Inject constructor(
         currencySymbol = currencySymbol,
         currencyCode = currencyCode,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        paperWidthMm = paperWidthMm,
+        paperCharPerLine = paperCharPerLine
     )
 }
-

@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -21,11 +23,15 @@ import id.stargan.intikasir.feature.home.ui.HomeScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
 import id.stargan.intikasir.feature.product.navigation.ProductRoutes
 import id.stargan.intikasir.feature.settings.ui.StoreSettingsScreen
+import id.stargan.intikasir.feature.settings.ui.StoreSettingsViewModel
 import id.stargan.intikasir.feature.pos.ui.PosScreenReactive
 import id.stargan.intikasir.feature.pos.ui.cart.CartScreenReactive
 import id.stargan.intikasir.feature.pos.ui.payment.PaymentScreenReactive
 import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
+import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
+import kotlinx.coroutines.launch
+
 /**
  * Navigation graph untuk Home feature
  */
@@ -171,7 +177,11 @@ fun NavGraphBuilder.homeNavGraph(
     ) { backStackEntry ->
         val transactionId = backStackEntry.arguments?.getString("transactionId")!!
         val viewModel = hiltViewModel<id.stargan.intikasir.feature.pos.ui.PosViewModelReactive>()
+        val settingsViewModel = hiltViewModel<StoreSettingsViewModel>()
         val state by viewModel.uiState.collectAsState()
+        val settingsState by settingsViewModel.uiState.collectAsState()
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val scope = rememberCoroutineScope()
 
         // Load transaction for receipt
         LaunchedEffect(transactionId) {
@@ -190,10 +200,33 @@ fun NavGraphBuilder.homeNavGraph(
                 }
             },
             onPrint = {
-                // TODO: Implement print functionality
+                val tx = state.transaction ?: return@ReceiptScreen
+                val items = state.transactionItems
+                val settings = settingsState.settings
+                val result = ReceiptPrinter.generateThermalReceiptPdf(
+                    context = context,
+                    settings = settings,
+                    transaction = tx,
+                    items = items
+                )
+                ReceiptPrinter.printOrSave(
+                    context = context,
+                    settings = settings,
+                    pdfUri = result.pdfUri,
+                    jobName = result.fileName
+                )
             },
             onShare = {
-                // TODO: Implement share functionality
+                val tx = state.transaction ?: return@ReceiptScreen
+                val items = state.transactionItems
+                val settings = settingsState.settings
+                val result = ReceiptPrinter.generateThermalReceiptPdf(
+                    context = context,
+                    settings = settings,
+                    transaction = tx,
+                    items = items
+                )
+                ReceiptPrinter.sharePdf(context, result.pdfUri)
             },
             onNewTransaction = {
                 navController.navigate(PosRoutes.POS) {

@@ -41,9 +41,12 @@ data class StoreSettingsEntity(
     val currencySymbol: String = "Rp",
     val currencyCode: String = "IDR",
 
+    // Paper Size Configuration
+    val paperWidthMm: Int = 58, // thermal paper width (58 or 80)
+    val paperCharPerLine: Int = 32, // derived default for 58mm, 48 for 80mm
+
     // Timestamps
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val syncedAt: Long? = null
 )
-

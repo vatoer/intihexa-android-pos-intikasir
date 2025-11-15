@@ -25,6 +25,7 @@ data class StoreSettings(
     val currencySymbol: String = "Rp",
     val currencyCode: String = "IDR",
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val paperWidthMm: Int = 58,
+    val paperCharPerLine: Int = 32
 )
-
