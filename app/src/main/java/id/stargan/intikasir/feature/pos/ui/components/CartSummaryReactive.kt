@@ -1,23 +1,22 @@
 package id.stargan.intikasir.feature.pos.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import id.stargan.intikasir.feature.pos.ui.PosViewModel
+import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
 import java.text.NumberFormat
 import java.util.Locale
 
 @Composable
-fun CartSummary(
-    state: PosViewModel.UiState,
+fun CartSummaryReactive(
+    state: PosViewModelReactive.UiState,
     modifier: Modifier = Modifier
 ) {
-    val nf = rememberRupiah()
+    val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
+
     Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
         Column(
             modifier = modifier
@@ -33,20 +32,31 @@ fun CartSummary(
                 Text("Subtotal")
                 Text(nf.format(state.subtotal).replace("Rp", "Rp "))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Pajak")
-                Text(nf.format(state.tax).replace("Rp", "Rp "))
+            if (state.taxRate > 0) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Pajak (${(state.taxRate * 100).toInt()}%)")
+                    Text(nf.format(state.tax).replace("Rp", "Rp "))
+                }
+            }
+            if (state.globalDiscount > 0) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Diskon")
+                    Text(
+                        "-${nf.format(state.globalDiscount).replace("Rp", "Rp ")}",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             HorizontalDivider()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(nf.format(state.total).replace("Rp", "Rp "), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    nf.format(state.total).replace("Rp", "Rp "),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
-@Composable
-private fun rememberRupiah(): NumberFormat {
-    return NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-}

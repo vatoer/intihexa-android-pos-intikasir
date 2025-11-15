@@ -9,51 +9,64 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import id.stargan.intikasir.feature.pos.ui.components.CartSummary
-import id.stargan.intikasir.feature.pos.ui.components.PosProductItem
+import id.stargan.intikasir.feature.pos.ui.components.CartSummaryReactive
+import id.stargan.intikasir.feature.pos.ui.components.PosProductItemReactive
 import id.stargan.intikasir.feature.home.ui.HomeViewModel
-import kotlinx.coroutines.launch
 
 /**
- * POS Screen - Simplified
- * Hanya untuk memilih produk, lalu navigate ke Payment Screen
+ * POS Screen - Reactive Version
+ * Database-driven dengan auto-save setiap perubahan
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PosScreen(
-    onNavigateToPayment: () -> Unit,
-    onNavigateToCart: () -> Unit,
-    onNavigateBack: (() -> Unit)? = null,
+fun PosScreenReactive(
+    transactionId: String? = null,
+    onNavigateToCart: (String) -> Unit,
+    onNavigateToPayment: (String) -> Unit,
+    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PosViewModel = hiltViewModel(),
+    viewModel: PosViewModelReactive = hiltViewModel(),
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val currentUser by homeViewModel.currentUser.collectAsState()
     val searchState = remember { mutableStateOf(TextFieldValue("")) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     var showClearConfirm by remember { mutableStateOf(false) }
-    var savingDraftForNavigation by remember { mutableStateOf(false) }
 
-    // Show error/success messages
-    LaunchedEffect(state.paymentError) {
-        state.paymentError?.let {
+    // Initialize transaction only when we have a user or an explicit transactionId
+    LaunchedEffect(transactionId, currentUser?.id) {
+        if (state.transactionId == null) {
+            when {
+                transactionId != null -> viewModel.loadTransaction(transactionId)
+                currentUser != null -> viewModel.initializeTransaction(
+                    cashierId = currentUser!!.id,
+                    cashierName = currentUser!!.name
+                )
+                else -> { /* wait until user loaded */ }
+            }
+        }
+    }
+
+    // If user not ready yet, show loading to avoid FK violation
+    if (state.transactionId == null && transactionId == null && currentUser == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // Show messages
+    LaunchedEffect(state.errorMessage) {
+        state.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearPaymentError()
+            viewModel.clearErrorMessage()
         }
     }
 
@@ -69,43 +82,35 @@ fun PosScreen(
             TopAppBar(
                 title = { Text("Kasir") },
                 navigationIcon = {
-                    if (onNavigateBack != null) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Kembali"
-                            )
-                        }
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali")
                     }
                 },
                 actions = {
                     // Delete/Clear cart icon
                     IconButton(
-                        onClick = { if (state.cartItems.isNotEmpty()) showClearConfirm = true },
-                        enabled = state.cartItems.isNotEmpty()
-                    ) { Icon(Icons.Default.Delete, contentDescription = "Kosongkan") }
+                        onClick = { if (state.hasItems) showClearConfirm = true },
+                        enabled = state.hasItems
+                    ) {
+                        Icon(Icons.Default.Delete, "Kosongkan")
+                    }
 
                     // Cart icon with badge
-                    BadgedBox(badge = {
-                        if (state.totalQuantity > 0) { Badge { Text(state.totalQuantity.toString()) } }
-                    }) {
+                    BadgedBox(
+                        badge = {
+                            if (state.totalQuantity > 0) {
+                                Badge { Text(state.totalQuantity.toString()) }
+                            }
+                        }
+                    ) {
                         IconButton(
                             onClick = {
-                                if (state.cartItems.isNotEmpty()) {
-                                    scope.launch {
-                                        savingDraftForNavigation = true
-                                        viewModel.saveDraftTransaction(
-                                            cashierId = currentUser?.id ?: "",
-                                            cashierName = currentUser?.name ?: "Kasir",
-                                            clearCart = false
-                                        )
-                                        savingDraftForNavigation = false
-                                        onNavigateToCart()
-                                    }
-                                }
+                                state.transactionId?.let { onNavigateToCart(it) }
                             },
-                            enabled = state.cartItems.isNotEmpty() && !savingDraftForNavigation && !state.isSaving
-                        ) { Icon(Icons.Default.ShoppingCart, contentDescription = "Keranjang") }
+                            enabled = state.hasItems
+                        ) {
+                            Icon(Icons.Default.ShoppingCart, "Keranjang")
+                        }
                     }
                 }
             )
@@ -115,31 +120,20 @@ fun PosScreen(
             Surface(tonalElevation = 3.dp) {
                 Button(
                     onClick = {
-                        if (state.cartItems.isNotEmpty()) {
-                            scope.launch {
-                                savingDraftForNavigation = true
-                                viewModel.saveDraftTransaction(
-                                    cashierId = currentUser?.id ?: "",
-                                    cashierName = currentUser?.name ?: "Kasir",
-                                    clearCart = false
-                                )
-                                savingDraftForNavigation = false
-                                onNavigateToPayment()
-                            }
-                        }
+                        state.transactionId?.let { onNavigateToPayment(it) }
                     },
-                    enabled = state.cartItems.isNotEmpty() && !savingDraftForNavigation && !state.isSaving,
+                    enabled = state.hasItems && !state.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                 ) {
-                    if (savingDraftForNavigation || state.isSaving) {
+                    if (state.isSaving) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Menyimpan...")
                     } else {
-                        Text("Lanjut ke Pembayaran (${state.cartItems.size} item)")
+                        Text("Lanjut ke Pembayaran (${state.transactionItems.size} item)")
                     }
                 }
             }
@@ -152,7 +146,7 @@ fun PosScreen(
                 .padding(padding)
         ) {
             // Top: Cart Summary
-            CartSummary(state = state)
+            CartSummaryReactive(state = state)
 
             // Middle: Search + Product List (scrollable)
             TextField(
@@ -169,23 +163,26 @@ fun PosScreen(
                     .padding(16.dp)
             )
             HorizontalDivider()
+
             Box(modifier = Modifier.weight(1f)) {
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
                     val filtered = state.products.filter { p ->
                         val q = state.searchQuery.trim().lowercase()
-                        if (q.isEmpty()) true else p.name.lowercase().contains(q) || (p.barcode?.lowercase()?.contains(q) == true)
+                        if (q.isEmpty()) true
+                        else p.name.lowercase().contains(q) || (p.barcode?.lowercase()?.contains(q) == true)
                     }
+
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp, top = 16.dp),
+                        contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filtered, key = { it.id }) { product ->
-                            val item = state.cart[product.id]
-                            PosProductItem(
+                            val item = state.transactionItems.find { it.productId == product.id }
+                            PosProductItemReactive(
                                 product = product,
-                                cartItem = item,
+                                transactionItem = item,
                                 onAdd = { viewModel.addOrIncrement(product.id) },
                                 onChangeQty = { qty -> viewModel.setQuantity(product.id, qty) },
                                 onSetDiscount = { discount -> viewModel.setItemDiscount(product.id, discount) }
@@ -197,6 +194,7 @@ fun PosScreen(
         }
     }
 
+    // Clear cart confirmation dialog
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },

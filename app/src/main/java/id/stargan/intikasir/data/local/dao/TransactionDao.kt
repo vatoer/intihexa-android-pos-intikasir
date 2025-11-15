@@ -83,5 +83,45 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedTransactions(): List<TransactionEntity>
-}
 
+    // New methods for reactive POS
+    @Query("""
+        UPDATE transactions 
+        SET subtotal = :subtotal, tax = :tax, discount = :discount, total = :total, updatedAt = :timestamp 
+        WHERE id = :transactionId
+    """)
+    suspend fun updateTransactionTotals(
+        transactionId: String,
+        subtotal: Double,
+        tax: Double,
+        discount: Double,
+        total: Double,
+        timestamp: Long = System.currentTimeMillis()
+    )
+
+    @Query("""
+        UPDATE transactions 
+        SET paymentMethod = :paymentMethod, discount = :globalDiscount, updatedAt = :timestamp 
+        WHERE id = :transactionId
+    """)
+    suspend fun updateTransactionPayment(
+        transactionId: String,
+        paymentMethod: id.stargan.intikasir.data.local.entity.PaymentMethod,
+        globalDiscount: Double,
+        timestamp: Long = System.currentTimeMillis()
+    )
+
+    @Query("""
+        UPDATE transactions 
+        SET cashReceived = :cashReceived, cashChange = :cashChange, notes = :notes, status = :status, updatedAt = :timestamp 
+        WHERE id = :transactionId
+    """)
+    suspend fun finalizeTransaction(
+        transactionId: String,
+        cashReceived: Double,
+        cashChange: Double,
+        notes: String?,
+        status: TransactionStatus,
+        timestamp: Long = System.currentTimeMillis()
+    )
+}

@@ -14,6 +14,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 class TransactionRepositoryImpl @Inject constructor(
     private val transactionDao: TransactionDao,
@@ -137,5 +139,106 @@ class TransactionRepositoryImpl @Inject constructor(
         }
         transactionItemDao.insertItems(itemEntities)
         transaction.id
+    }
+
+    override suspend fun createEmptyDraft(
+        cashierId: String,
+        cashierName: String
+    ): String = withContext(Dispatchers.IO) {
+        val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+        val datePart = dateFormat.format(Date())
+        val prefix = "DRAFT-$datePart"
+        val lastNumber = transactionDao.getLastTransactionNumber(prefix)
+        val nextSeq = (lastNumber?.substringAfterLast('-')?.toIntOrNull() ?: 0) + 1
+        val transactionNumber = "$prefix-${String.format(Locale.getDefault(), "%04d", nextSeq)}"
+
+        val transaction = TransactionEntity(
+            transactionNumber = transactionNumber,
+            cashierId = cashierId,
+            cashierName = cashierName,
+            paymentMethod = PaymentMethod.CASH,
+            subtotal = 0.0,
+            tax = 0.0,
+            discount = 0.0,
+            total = 0.0,
+            cashReceived = 0.0,
+            cashChange = 0.0,
+            notes = null,
+            status = TransactionStatus.DRAFT
+        )
+        transactionDao.insertTransaction(transaction)
+        transaction.id
+    }
+
+    override fun getTransactionById(transactionId: String): Flow<TransactionEntity?> {
+        return transactionDao.getTransactionByIdFlow(transactionId)
+    }
+
+    override fun getTransactionItems(transactionId: String): Flow<List<TransactionItemEntity>> {
+        return transactionItemDao.getItemsByTransactionIdFlow(transactionId)
+    }
+
+    override suspend fun updateTransactionItems(
+        transactionId: String,
+        items: List<Pair<String, Int>>,
+        itemDiscounts: Map<String, Double>
+    ) = withContext(Dispatchers.IO) {
+        // Delete existing items
+        transactionItemDao.deleteItemsByTransactionId(transactionId)
+
+        if (items.isEmpty()) return@withContext
+
+        // Insert new items
+        val productMap = productDao.getProductsByIds(items.map { it.first }).associateBy { it.id }
+        val itemEntities = items.map { (productId, qty) ->
+            val p = productMap[productId] ?: throw IllegalArgumentException("Product not found: $productId")
+            val itemDiscount = itemDiscounts[productId] ?: 0.0
+            TransactionItemEntity(
+                transactionId = transactionId,
+                productId = productId,
+                productName = p.name,
+                productPrice = p.price,
+                productSku = p.sku,
+                quantity = qty,
+                unitPrice = p.price,
+                discount = itemDiscount,
+                subtotal = (p.price * qty) - itemDiscount
+            )
+        }
+        transactionItemDao.insertItems(itemEntities)
+    }
+
+    override suspend fun updateTransactionTotals(
+        transactionId: String,
+        subtotal: Double,
+        tax: Double,
+        discount: Double,
+        total: Double
+    ) = withContext(Dispatchers.IO) {
+        transactionDao.updateTransactionTotals(transactionId, subtotal, tax, discount, total)
+    }
+
+    override suspend fun updateTransactionPayment(
+        transactionId: String,
+        paymentMethod: PaymentMethod,
+        globalDiscount: Double
+    ) = withContext(Dispatchers.IO) {
+        transactionDao.updateTransactionPayment(transactionId, paymentMethod, globalDiscount)
+    }
+
+    override suspend fun finalizeTransaction(
+        transactionId: String,
+        cashReceived: Double,
+        cashChange: Double,
+        notes: String?
+    ) = withContext(Dispatchers.IO) {
+        // Update status to COMPLETED and set cash details
+        transactionDao.finalizeTransaction(transactionId, cashReceived, cashChange, notes, TransactionStatus.COMPLETED)
+
+        // Decrement stock for all items
+        val items = transactionItemDao.getItemsByTransactionId(transactionId)
+        items.forEach { item ->
+            productDao.decrementStock(item.productId, item.quantity)
+        }
     }
 }

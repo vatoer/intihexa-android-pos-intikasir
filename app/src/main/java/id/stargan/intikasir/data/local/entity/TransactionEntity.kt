@@ -63,9 +63,12 @@ enum class PaymentMethod {
 }
 
 enum class TransactionStatus {
-    PENDING,    // Belum dibayar
-    COMPLETED,  // Selesai
-    CANCELLED,  // Dibatalkan
-    REFUNDED    // Dikembalikan
+    DRAFT,       // Draft belum disimpan (untuk cart persistence)
+    PENDING,     // Pesanan dibuat, belum dibayar
+    PAID,        // Sudah dibayar, belum diproses
+    PROCESSING,  // Sedang diproses
+    COMPLETED,   // Selesai
+    CANCELLED,   // Dibatalkan
+    REFUNDED     // Dikembalikan
 }
 

@@ -44,5 +44,14 @@ interface TransactionItemDao {
 
     @Query("DELETE FROM transaction_items WHERE transactionId = :transactionId")
     suspend fun deleteItemsByTransaction(transactionId: String)
-}
 
+    // Additional methods for reactive POS
+    @Query("SELECT * FROM transaction_items WHERE transactionId = :transactionId ORDER BY createdAt ASC")
+    fun getItemsByTransactionIdFlow(transactionId: String): Flow<List<TransactionItemEntity>>
+
+    @Query("SELECT * FROM transaction_items WHERE transactionId = :transactionId ORDER BY createdAt ASC")
+    suspend fun getItemsByTransactionId(transactionId: String): List<TransactionItemEntity>
+
+    @Query("DELETE FROM transaction_items WHERE transactionId = :transactionId")
+    suspend fun deleteItemsByTransactionId(transactionId: String)
+}

@@ -5,18 +5,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import id.stargan.intikasir.feature.home.ui.HomeScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
 import id.stargan.intikasir.feature.product.navigation.ProductRoutes
 import id.stargan.intikasir.feature.settings.ui.StoreSettingsScreen
-import id.stargan.intikasir.feature.pos.ui.PosScreen
-
+import id.stargan.intikasir.feature.pos.ui.PosScreenReactive
+import id.stargan.intikasir.feature.pos.ui.cart.CartScreenReactive
+import id.stargan.intikasir.feature.pos.ui.payment.PaymentScreenReactive
+import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
+import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 /**
  * Navigation graph untuk Home feature
  */
@@ -27,7 +36,12 @@ fun NavGraphBuilder.homeNavGraph(
     composable(HomeRoutes.HOME) {
         HomeScreen(
             onMenuClick = { route ->
-                navController.navigate(route)
+                if (route == "cashier") {
+                    // Navigate to cashier route with optional transactionId param omitted
+                    navController.navigate(HomeRoutes.CASHIER)
+                } else {
+                    navController.navigate(route)
+                }
             },
             onLogout = onLogout
         )
@@ -85,12 +99,106 @@ fun NavGraphBuilder.homeNavGraph(
         PlaceholderScreen(title = "Cetak Resi", onBack = { navController.navigateUp() })
     }
 
-    // POS Screen (Kasir)
-    composable(HomeRoutes.CASHIER) {
-        PosScreen(
-            onPay = { total ->
-                // Navigate back to home after payment
-                navController.navigateUp()
+    // POS Screen (Kasir) - Reactive version
+    composable(
+        route = HomeRoutes.CASHIER + "?transactionId={transactionId}",
+        arguments = listOf(
+            navArgument("transactionId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            }
+        )
+    ) { backStackEntry ->
+        val transactionId = backStackEntry.arguments?.getString("transactionId")
+
+        PosScreenReactive(
+            transactionId = transactionId,
+            onNavigateToCart = { txId ->
+                navController.navigate(PosRoutes.cart(txId))
+            },
+            onNavigateToPayment = { txId ->
+                navController.navigate(PosRoutes.payment(txId))
+            },
+            onNavigateBack = { navController.navigateUp() }
+        )
+    }
+
+    // Cart Screen - Reactive version
+    composable(
+        route = PosRoutes.CART,
+        arguments = listOf(
+            navArgument("transactionId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val transactionId = backStackEntry.arguments?.getString("transactionId")!!
+
+        CartScreenReactive(
+            transactionId = transactionId,
+            onNavigateBack = { navController.navigateUp() },
+            onNavigateToPayment = { txId ->
+                navController.navigate(PosRoutes.payment(txId))
+            }
+        )
+    }
+
+    // Payment Screen - Reactive version
+    composable(
+        route = PosRoutes.PAYMENT,
+        arguments = listOf(
+            navArgument("transactionId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val transactionId = backStackEntry.arguments?.getString("transactionId")!!
+
+        PaymentScreenReactive(
+            transactionId = transactionId,
+            onPaymentSuccess = { txId ->
+                navController.navigate(PosRoutes.receipt(txId)) {
+                    popUpTo(HomeRoutes.HOME) { inclusive = false }
+                }
+            },
+            onNavigateBack = { navController.navigateUp() }
+        )
+    }
+
+    // Receipt Screen
+    composable(
+        route = PosRoutes.RECEIPT,
+        arguments = listOf(
+            navArgument("transactionId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val transactionId = backStackEntry.arguments?.getString("transactionId")!!
+        val viewModel = hiltViewModel<id.stargan.intikasir.feature.pos.ui.PosViewModelReactive>()
+        val state by viewModel.uiState.collectAsState()
+
+        // Load transaction for receipt
+        LaunchedEffect(transactionId) {
+            viewModel.loadTransaction(transactionId)
+        }
+
+        ReceiptScreen(
+            transactionNumber = state.transaction?.transactionNumber ?: "INV-XXXXX",
+            total = state.total,
+            cashReceived = state.transaction?.cashReceived ?: 0.0,
+            cashChange = state.transaction?.cashChange ?: 0.0,
+            paymentMethod = state.paymentMethod.name,
+            onFinish = {
+                navController.navigate(HomeRoutes.HOME) {
+                    popUpTo(HomeRoutes.HOME) { inclusive = false }
+                }
+            },
+            onPrint = {
+                // TODO: Implement print functionality
+            },
+            onShare = {
+                // TODO: Implement share functionality
+            },
+            onNewTransaction = {
+                navController.navigate(PosRoutes.POS) {
+                    popUpTo(HomeRoutes.HOME) { inclusive = false }
+                }
             }
         )
     }

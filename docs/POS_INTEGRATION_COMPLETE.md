@@ -2,7 +2,7 @@
 
 ## ✅ SELESAI - Build Success
 
-**Build Status:** BUILD SUCCESSFUL in 42s
+**Build Status:** BUILD SUCCESSFUL in 58s
 
 ---
 
@@ -108,6 +108,82 @@ Home Screen
 
 ---
 
+### 4. ✅ Perbaikan UI/UX POS Screen (BARU)
+
+**Masalah yang Diperbaiki:**
+
+#### A. Tombol Back untuk Kembali ke Menu Utama
+**Sebelumnya:**
+- Tidak ada tombol back di POS screen
+- User harus menggunakan system back button
+- Tidak user-friendly
+
+**Sekarang:**
+- ✅ TopAppBar ditambahkan dengan judul "Kasir"
+- ✅ Navigation icon (←) di kiri atas
+- ✅ Klik tombol back → kembali ke Home
+- ✅ Consistent dengan screen lain
+
+```kotlin
+TopAppBar(
+    title = { Text("Kasir") },
+    navigationIcon = {
+        IconButton(onClick = onNavigateBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Kembali"
+            )
+        }
+    }
+)
+```
+
+#### B. Tombol Simpan & Bayar Tertutup System Navigation
+**Sebelumnya:**
+- Bottom bar langsung di edge screen
+- Tertutup oleh system navigation buttons
+- User susah klik tombol
+
+**Sekarang:**
+- ✅ Gunakan `WindowInsets.navigationBars` untuk detect system UI
+- ✅ Tambah padding bottom otomatis sesuai tinggi navigation bar
+- ✅ Tombol tidak tertutup lagi
+- ✅ Adaptif untuk semua device (gesture/3-button navigation)
+
+```kotlin
+Row(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 16.dp)
+        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
+    // ...
+)
+```
+
+**Visual Comparison:**
+
+Before:
+```
+┌────────────────────────┐
+│ [Simpan]      [Bayar]  │ ← Tertutup navigation bar
+├────────────────────────┤
+│ ▢  ◀  ⚫               │ ← System buttons overlap
+└────────────────────────┘
+```
+
+After:
+```
+┌────────────────────────┐
+│ [Simpan]      [Bayar]  │ ← Padding cukup
+├────────────────────────┤
+│                        │ ← Safe area
+├────────────────────────┤
+│ ▢  ◀  ⚫               │ ← System buttons tidak overlap
+└────────────────────────┘
+```
+
+---
+
 ## 📱 User Flow Lengkap
 
 ### Setting PPN (One-time setup)
@@ -136,6 +212,26 @@ Home Screen
 7. Bayar / Simpan
    ↓
    - Transaksi tersimpan dengan tax = Rp 11.000
+```
+
+### Navigasi POS (Updated)
+```
+1. Home Screen
+2. Click "Kasir" card
+   ↓
+3. POS Screen terbuka dengan TopAppBar
+4. Click tombol back (←) di kiri atas
+   ↓
+5. Kembali ke Home Screen
+```
+
+### Checkout dengan Bottom Bar (Updated)
+```
+1. POS Screen → tambah produk
+2. Scroll ke bawah
+3. Tombol [Simpan] [Bayar] visible dan clickable
+4. Tidak tertutup system buttons
+5. Click tombol → action berhasil
 ```
 
 ---
@@ -353,6 +449,8 @@ Home → Pengaturan → StoreSettingsScreen
 - ❌ Rawan error input
 - ❌ Tidak tersimpan
 - ❌ Settings tidak accessible
+- ❌ Tidak ada tombol back di POS
+- ❌ Bottom buttons tertutup navigation bar
 
 ### After Integration
 - ✅ PPN centralized di settings
@@ -362,31 +460,9 @@ Home → Pengaturan → StoreSettingsScreen
 - ✅ Settings fully accessible
 - ✅ Reactive updates via Flow
 - ✅ User-friendly: set once, use everywhere
-
----
-
-## 🔗 Integration Points
-
-### Current
-```kotlin
-// POS
-Home → Kasir → PosScreen (dengan auto tax)
-
-// Settings
-Home → Pengaturan → StoreSettingsScreen (edit tax)
-```
-
-### Future (ready to add)
-```kotlin
-// Receipt
-PosScreen.onPay → ReceiptScreen (show tax breakdown)
-
-// Reports
-Home → Laporan → show total tax collected
-
-// Refund
-History → Detail → Refund (reverse tax)
-```
+- ✅ **TopAppBar dengan back button**
+- ✅ **Bottom bar dengan safe area padding**
+- ✅ **Tidak overlap dengan system UI**
 
 ---
 
@@ -398,6 +474,8 @@ History → Detail → Refund (reverse tax)
 3. ✅ Settings screen sekarang accessible
 4. ✅ Navigation properly integrated
 5. ✅ Clean separation of concerns
+6. ✅ **TopAppBar ditambahkan dengan back button**
+7. ✅ **Bottom bar menggunakan WindowInsets untuk avoid overlap**
 
 **Why Better:**
 - Centralized configuration
@@ -405,6 +483,9 @@ History → Detail → Refund (reverse tax)
 - Better UX (set once, not per transaction)
 - Persistent & reactive
 - Scalable for future tax types
+- **Easy navigation dengan back button**
+- **Buttons accessible di semua device**
+- **Adaptif dengan system navigation mode**
 
 **Build:** ✅ SUCCESS  
 **Errors:** 0  
@@ -412,5 +493,4 @@ History → Detail → Refund (reverse tax)
 
 ---
 
-**🎉 POS Integration Complete!**
-
+**🎉 POS Integration Complete + UI/UX Fixes!**

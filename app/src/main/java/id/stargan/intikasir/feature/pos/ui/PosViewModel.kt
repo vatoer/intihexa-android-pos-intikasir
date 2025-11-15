@@ -24,19 +24,27 @@ class PosViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class UiState(
+        // Primary data
         val products: List<id.stargan.intikasir.domain.model.Product> = emptyList(),
         val cart: Map<String, CartItem> = emptyMap(),
         val searchQuery: String = "",
         val categoryId: String? = null,
         val isLoading: Boolean = false,
         val error: String? = null,
+        // Pricing
         val taxRate: Double = 0.0,
         val discountGlobal: Double = 0.0,
         val paymentMethod: PaymentMethod = PaymentMethod.CASH,
+        // Save state
         val isSaving: Boolean = false,
         val lastSavedTransactionId: String? = null,
         val paymentError: String? = null,
-        val successMessage: String? = null
+        val successMessage: String? = null,
+        // Transaction details for receipt
+        val lastTransactionNumber: String? = null,
+        val lastCashReceived: Double = 0.0,
+        val lastCashChange: Double = 0.0,
+        val lastPaymentMethod: PaymentMethod = PaymentMethod.CASH
     ) {
         val cartItems: List<CartItem> get() = cart.values.toList()
         val totalQuantity: Int get() = cartItems.sumOf { it.quantity }
@@ -193,11 +201,21 @@ class PosViewModel @Inject constructor(
                 notes = notes,
                 status = TransactionStatus.COMPLETED
             )
+
+            // Generate transaction number for display
+            val dateFormat = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault())
+            val datePart = dateFormat.format(java.util.Date())
+            val transactionNumber = "INV-$datePart-${transactionId.takeLast(4)}"
+
             _uiState.update {
                 it.copy(
                     cart = emptyMap(),
                     isSaving = false,
                     lastSavedTransactionId = transactionId,
+                    lastTransactionNumber = transactionNumber,
+                    lastCashReceived = received,
+                    lastCashChange = change,
+                    lastPaymentMethod = state.paymentMethod,
                     successMessage = "Transaksi berhasil disimpan"
                 )
             }
@@ -206,7 +224,12 @@ class PosViewModel @Inject constructor(
         }
     }
 
-    suspend fun saveDraftTransaction(cashierId: String, cashierName: String, notes: String? = null) {
+    suspend fun saveDraftTransaction(
+        cashierId: String,
+        cashierName: String,
+        notes: String? = null,
+        clearCart: Boolean = true
+    ) {
         val state = _uiState.value
         if (state.cartItems.isEmpty()) return
         _uiState.update { it.copy(isSaving = true, paymentError = null) }
@@ -230,10 +253,10 @@ class PosViewModel @Inject constructor(
             )
             _uiState.update {
                 it.copy(
-                    cart = emptyMap(),
+                    cart = if (clearCart) emptyMap() else it.cart,
                     isSaving = false,
                     lastSavedTransactionId = draftId,
-                    successMessage = "Draft transaksi berhasil disimpan"
+                    successMessage = if (clearCart) "Draft transaksi berhasil disimpan" else null
                 )
             }
         } catch (e: Exception) {
