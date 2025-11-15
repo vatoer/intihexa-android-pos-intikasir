@@ -20,12 +20,12 @@ import java.util.Locale
 
 @Composable
 fun PosProductItemReactive(
+    modifier: Modifier = Modifier,
     product: Product,
     transactionItem: TransactionItemEntity?,
     onAdd: () -> Unit,
     onChangeQty: (Int) -> Unit,
     onSetDiscount: ((Double) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
     var showDiscountDialog by remember { mutableStateOf(false) }
@@ -38,8 +38,10 @@ fun PosProductItemReactive(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
+                .defaultMinSize(minHeight = 80.dp)
+            ,
+            verticalAlignment = Alignment.Top
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -65,7 +67,8 @@ fun PosProductItemReactive(
                 // Show subtotal if qty > 1
                 if (transactionItem != null && transactionItem.quantity > 1) {
                     Text(
-                        "Subtotal: ${transactionItem.quantity} x ${nf.format(product.price).replace("Rp", "Rp ")} = ${nf.format(transactionItem.subtotal).replace("Rp", "Rp ")}",
+//                        "Subtotal: ${transactionItem.quantity} x ${nf.format(product.price).replace("Rp", "Rp ")} = ${nf.format(transactionItem.subtotal).replace("Rp", "Rp ")}",
+                        " x ${transactionItem.quantity} = ${nf.format(transactionItem.subtotal).replace("Rp", "Rp ")}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
