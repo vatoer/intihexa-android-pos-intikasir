@@ -114,6 +114,15 @@ fun StoreSettingsScreen(
         cameraLauncher.launch(uri)
     }
 
+    // Camera permission launcher - placed after onCaptureLogo so we can call it
+    val requestCameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            onCaptureLogo()
+        } else {
+            scope.launch { snackbarHostState.showSnackbar("Izin kamera ditolak") }
+        }
+    }
+
     // Handle error messages
     LaunchedEffect(uiState.error) {
         uiState.error?.let { message ->
@@ -190,94 +199,128 @@ fun StoreSettingsScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
 
-                        // Logo Preview
+                        // Logo Preview with single edit pencil overlay
+                        var showLogoOptions by remember { mutableStateOf(false) }
                         Box(
-                            modifier = Modifier
-                                .size(180.dp)
-                                .clip(CircleShape),
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier.size(180.dp)
                         ) {
-                            if (uiState.logoPreviewUri != null) {
-                                AsyncImage(
-                                    model = uiState.logoPreviewUri,
-                                    contentDescription = "Logo Toko",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Card(
-                                    modifier = Modifier.fillMaxSize(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                    ),
-                                    onClick = onPickLogo
-                                ) {
-                                    Box(
+                            // Inner clipped circle for the image/card only
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (uiState.logoPreviewUri != null) {
+                                    AsyncImage(
+                                        model = uiState.logoPreviewUri,
+                                        contentDescription = "Logo Toko",
                                         modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Card(
+                                        modifier = Modifier.fillMaxSize(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                        onClick = { showLogoOptions = true }
                                     ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Store,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(64.dp),
-                                                tint = MaterialTheme.colorScheme.outline
-                                            )
-                                            Text(
-                                                text = "Tambah Logo",
-                                                color = MaterialTheme.colorScheme.outline
-                                            )
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Store,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(64.dp),
+                                                    tint = MaterialTheme.colorScheme.outline
+                                                )
+                                                Text(
+                                                    text = "Tambah Logo",
+                                                    color = MaterialTheme.colorScheme.outline
+                                                )
+                                            }
                                         }
                                     }
                                 }
+
+                                if (uiState.isImageProcessing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
                             }
 
-                            if (uiState.isImageProcessing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.align(Alignment.Center)
+                            // FAB overlay outside the clipped child so it won't get cropped
+                            SmallFloatingActionButton(
+                                onClick = { showLogoOptions = true },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .offset((-6).dp, (-6).dp),
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Ubah Logo"
                                 )
                             }
                         }
 
-                        // Action Buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (uiState.logoPreviewUri != null) {
-                                OutlinedButton(
-                                    onClick = { viewModel.onEvent(StoreSettingsUiEvent.RemoveLogo) },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Hapus")
+                        // Logo options dialog
+                        if (showLogoOptions) {
+                            AlertDialog(
+                                onDismissRequest = { showLogoOptions = false },
+                                title = { Text("Pilih Sumber Logo") },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        // Galeri
+                                        OutlinedButton(onClick = {
+                                            showLogoOptions = false
+                                            onPickLogo()
+                                        }, modifier = Modifier.fillMaxWidth()) {
+                                            Icon(Icons.Default.Image, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Pilih dari Galeri")
+                                        }
+                                        // Kamera (with runtime permission)
+                                        OutlinedButton(onClick = {
+                                            showLogoOptions = false
+                                            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                                            if (granted) {
+                                                onCaptureLogo()
+                                            } else {
+                                                requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                            }
+                                        }, modifier = Modifier.fillMaxWidth()) {
+                                            Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Ambil dari Kamera")
+                                        }
+                                        if (uiState.logoPreviewUri != null) {
+                                            OutlinedButton(onClick = {
+                                                showLogoOptions = false
+                                                viewModel.onEvent(StoreSettingsUiEvent.RemoveLogo)
+                                            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = MaterialTheme.colorScheme.error
+                                            )) {
+                                                Icon(Icons.Default.Delete, contentDescription = null)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("Hapus Logo")
+                                            }
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = { showLogoOptions = false }) { Text("Tutup") }
                                 }
-                            }
-
-                            OutlinedButton(
-                                onClick = onPickLogo,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Image, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (uiState.logoPreviewUri != null) "Ganti" else "Galeri")
-                            }
-
-                            OutlinedButton(
-                                onClick = onCaptureLogo,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Kamera")
-                            }
+                            )
                         }
 
                         Text(
