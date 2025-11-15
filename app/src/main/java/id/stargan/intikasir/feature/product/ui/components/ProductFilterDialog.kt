@@ -121,35 +121,27 @@ fun ProductFilterDialog(
 
                 // Stock Filters
                 Text(text = "Stok", style = MaterialTheme.typography.titleSmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = inStockOnly, onCheckedChange = { inStockOnly = it })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Hanya yang tersedia")
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = lowStockOnly, onCheckedChange = { lowStockOnly = it })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Stok menipis")
-                }
+                CheckboxRow(
+                    text = "Hanya yang tersedia",
+                    checked = inStockOnly,
+                    onCheckedChange = { inStockOnly = it }
+                )
+                CheckboxRow(
+                    text = "Stok menipis",
+                    checked = lowStockOnly,
+                    onCheckedChange = { lowStockOnly = it }
+                )
+
 
                 HorizontalDivider()
 
                 // Active Filter
                 Text(text = "Status", style = MaterialTheme.typography.titleSmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = activeOnly, onCheckedChange = { activeOnly = it })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Hanya produk aktif")
-                }
+                CheckboxRow(
+                    text = "Hanya produk aktif",
+                    checked = activeOnly,
+                    onCheckedChange = { activeOnly = it }
+                )
             }
         },
         confirmButton = {
@@ -173,4 +165,31 @@ fun ProductFilterDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
         modifier = modifier
     )
+}
+
+@Composable
+private fun CheckboxRow(
+    text: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = checked,
+                onClick = { onCheckedChange(!checked) },
+                role = Role.Checkbox
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = null
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text)
+    }
 }

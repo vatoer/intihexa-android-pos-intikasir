@@ -184,6 +184,66 @@ fun ProductFormScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+
+                // Image Picker Section
+                Text("Gambar Produk", style = MaterialTheme.typography.titleSmall)
+                val preview = uiState.imagePreviewUri
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        if (preview != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(preview)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Preview Gambar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.RemoveImage) }, label = { Text("Hapus") })
+                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.PickImage) }, label = { Text("Ganti") })
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { viewModel.onEvent(ProductFormUiEvent.PickImage) },
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(48.dp))
+                                Spacer(Modifier.height(8.dp))
+                                Text("Pilih / Ambil Gambar", color = MaterialTheme.colorScheme.outline)
+                            }
+                        }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = onPickImage) {
+                        Icon(Icons.Default.Image, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Galeri")
+                    }
+                    OutlinedButton(onClick = onCaptureImage) {
+                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Kamera")
+                    }
+                }
+
                 // Product Name
                 OutlinedTextField(
                     value = uiState.name,
@@ -232,7 +292,7 @@ fun ProductFormScreen(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
+                            .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                     )
 
                     ExposedDropdownMenu(
@@ -332,64 +392,7 @@ fun ProductFormScreen(
                     maxLines = 5
                 )
 
-                // Image Picker Section
-                Text("Gambar Produk", style = MaterialTheme.typography.titleSmall)
-                val preview = uiState.imagePreviewUri
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(Modifier.fillMaxSize()) {
-                        if (preview != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(preview)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Preview Gambar",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.RemoveImage) }, label = { Text("Hapus") })
-                                AssistChip(onClick = { viewModel.onEvent(ProductFormUiEvent.PickImage) }, label = { Text("Ganti") })
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { viewModel.onEvent(ProductFormUiEvent.PickImage) },
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.height(8.dp))
-                                Text("Pilih / Ambil Gambar", color = MaterialTheme.colorScheme.outline)
-                            }
-                        }
-                    }
-                }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = onPickImage) {
-                        Icon(Icons.Default.Image, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Galeri")
-                    }
-                    OutlinedButton(onClick = onCaptureImage) {
-                        Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Kamera")
-                    }
-                }
 
                 // Active Status
                 Row(
