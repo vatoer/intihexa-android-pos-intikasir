@@ -10,13 +10,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
+import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import id.stargan.intikasir.feature.pos.ui.components.PosProductItemReactive
-import java.text.NumberFormat
-import java.util.Locale
 
 /**
  * Cart Screen - Reactive Version
@@ -32,7 +30,14 @@ fun CartScreenReactive(
     viewModel: PosViewModelReactive = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
+
+    // Calculate item-level discount and gross subtotal
+    val itemDiscountTotal = remember(state.transactionItems) {
+        state.transactionItems.sumOf { it.discount }
+    }
+    val grossSubtotal = remember(state.transactionItems) {
+        state.transactionItems.sumOf { it.unitPrice * it.quantity }
+    }
 
     // Load transaction
     LaunchedEffect(transactionId) {
@@ -60,64 +65,16 @@ fun CartScreenReactive(
                         .padding(16.dp)
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
                 ) {
-                    // Summary card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Subtotal")
-                                Text(nf.format(state.subtotal).replace("Rp", "Rp "))
-                            }
-                            if (state.taxRate > 0) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Pajak (${(state.taxRate * 100).toInt()}%)")
-                                    Text(nf.format(state.tax).replace("Rp", "Rp "))
-                                }
-                            }
-                            if (state.globalDiscount > 0) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Diskon")
-                                    Text(
-                                        "-${nf.format(state.globalDiscount).replace("Rp", "Rp ")}",
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                            HorizontalDivider()
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Total",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    nf.format(state.total).replace("Rp", "Rp "),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
+                    // Summary using reusable component
+                    OrderSummaryCard(
+                        grossSubtotal = grossSubtotal,
+                        itemDiscount = itemDiscountTotal,
+                        netSubtotal = state.subtotal,
+                        taxRate = state.taxRate,
+                        taxAmount = state.tax,
+                        globalDiscount = state.globalDiscount,
+                        total = state.total
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.feature.product.domain.usecase.GetAllProductsUseCase
 import id.stargan.intikasir.data.local.entity.PaymentMethod
-import id.stargan.intikasir.data.local.entity.TransactionStatus
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.feature.settings.domain.usecase.GetStoreSettingsUseCase
@@ -200,9 +199,13 @@ class PosViewModelReactive @Inject constructor(
                 } else {
                     currentItems.map { item ->
                         if (item.productId == productId) {
+                            // Clamp discount so it never exceeds max price * qty
+                            val maxDiscount = product.price * quantity
+                            val safeDiscount = item.discount.coerceIn(0.0, maxDiscount)
                             item.copy(
                                 quantity = quantity,
-                                subtotal = (product.price * quantity) - item.discount
+                                discount = safeDiscount,
+                                subtotal = (product.price * quantity) - safeDiscount
                             )
                         } else item
                     }
@@ -404,4 +407,3 @@ class PosViewModelReactive @Inject constructor(
         // Will auto-update via Flow observer, no need to manually update state
     }
 }
-

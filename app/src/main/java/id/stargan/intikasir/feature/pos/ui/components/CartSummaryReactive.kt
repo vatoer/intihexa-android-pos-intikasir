@@ -3,60 +3,46 @@ package id.stargan.intikasir.feature.pos.ui.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
-import java.text.NumberFormat
-import java.util.Locale
 
+/**
+ * Cart Summary for POS Screen
+ * Uses OrderSummaryCard component for consistency
+ */
 @Composable
 fun CartSummaryReactive(
     state: PosViewModelReactive.UiState,
     modifier: Modifier = Modifier
 ) {
-    val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
+    // Calculate item-level discount and gross subtotal
+    val itemDiscountTotal = remember(state.transactionItems) {
+        state.transactionItems.sumOf { it.discount }
+    }
+    val grossSubtotal = remember(state.transactionItems) {
+        state.transactionItems.sumOf { it.unitPrice * it.quantity }
+    }
 
-    Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Item")
-                Text(state.totalQuantity.toString())
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Subtotal")
-                Text(nf.format(state.subtotal).replace("Rp", "Rp "))
-            }
-            if (state.taxRate > 0) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Pajak (${(state.taxRate * 100).toInt()}%)")
-                    Text(nf.format(state.tax).replace("Rp", "Rp "))
-                }
-            }
-            if (state.globalDiscount > 0) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Diskon")
-                    Text(
-                        "-${nf.format(state.globalDiscount).replace("Rp", "Rp ")}",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    nf.format(state.total).replace("Rp", "Rp "),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            OrderSummaryCard(
+                grossSubtotal = grossSubtotal,
+                itemDiscount = itemDiscountTotal,
+                netSubtotal = state.subtotal,
+                taxRate = state.taxRate,
+                taxAmount = state.tax,
+                globalDiscount = state.globalDiscount,
+                total = state.total,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
+
 

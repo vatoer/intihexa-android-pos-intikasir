@@ -11,9 +11,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
+import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.ceil
 
 /**
  * Payment Screen - Reactive Version
@@ -60,10 +62,26 @@ fun PaymentScreenReactive(
         }
     }
 
-    // Generate smart cash suggestions
+    // Generate smart cash suggestions inline
     val cashSuggestions: List<Double> = remember(state.total) {
-        generateSmartCashSuggestions(state.total)
+        if (state.total <= 0.0) listOf(1000.0, 2000.0, 5000.0) else buildList {
+            val total = state.total
+            val base = listOf(
+                ceil(total / 1000) * 1000,
+                ceil(total / 5000) * 5000,
+                ceil(total / 10000) * 10000,
+                ceil(total / 50000) * 50000,
+                ceil(total / 100000) * 100000
+            ).filter { it >= total }
+            addAll(base)
+            add(ceil(total / 10000) * 10000 + 10000)
+            add(ceil(total / 50000) * 50000 + 50000)
+        }.distinct().sorted().take(6)
     }
+
+    // Compute per-item discount and gross subtotal for clearer breakdown
+    val itemDiscountTotal = remember(state.transactionItems) { state.transactionItems.sumOf { it.discount } }
+    val grossSubtotal = remember(state.transactionItems) { state.transactionItems.sumOf { it.unitPrice * it.quantity } }
 
     Scaffold(
         topBar = {
@@ -123,74 +141,16 @@ fun PaymentScreenReactive(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Order Summary (compact)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        "Ringkasan Pesanan",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    HorizontalDivider()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Subtotal", style = MaterialTheme.typography.bodySmall)
-                        Text(nf.format(state.subtotal).replace("Rp", "Rp "), style = MaterialTheme.typography.bodySmall)
-                    }
-
-                    if (state.taxRate > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("PPN (${(state.taxRate * 100).toInt()}%)", style = MaterialTheme.typography.bodySmall)
-                            Text(nf.format(state.tax).replace("Rp", "Rp "), style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-
-                    if (state.globalDiscount > 0) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Diskon", style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                "-${nf.format(state.globalDiscount).replace("Rp", "Rp ")}",
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "Total",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            nf.format(state.total).replace("Rp", "Rp "),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
+            // Order Summary (using reusable component)
+            OrderSummaryCard(
+                grossSubtotal = grossSubtotal,
+                itemDiscount = itemDiscountTotal,
+                netSubtotal = state.subtotal,
+                taxRate = state.taxRate,
+                taxAmount = state.tax,
+                globalDiscount = state.globalDiscount,
+                total = state.total
+            )
 
             // Global Discount (compact)
             OutlinedTextField(
@@ -292,5 +252,3 @@ fun PaymentScreenReactive(
         }
     }
 }
-
-// Helpers removed: use generateSmartCashSuggestions from PaymentScreen.kt to avoid duplicate
