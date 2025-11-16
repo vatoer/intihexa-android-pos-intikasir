@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
+import id.stargan.intikasir.data.local.entity.TransactionStatus
 import id.stargan.intikasir.feature.pos.domain.TransactionRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -23,6 +24,9 @@ class HistoryViewModel @Inject constructor(
     private val _detailUiState = MutableStateFlow(HistoryDetailUiState())
     val detailUiState: StateFlow<HistoryDetailUiState> = _detailUiState.asStateFlow()
 
+    private val _toastMessage = MutableStateFlow<String?>(null)
+    val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
+
     init {
         applyFilter() // default today
     }
@@ -32,9 +36,14 @@ class HistoryViewModel @Inject constructor(
             is HistoryEvent.ChangeRange -> _uiState.update { it.copy(range = event.range, showFilter = true).withRangeDefaults() }
             is HistoryEvent.ChangeStartDate -> _uiState.update { it.copy(startDate = event.value) }
             is HistoryEvent.ChangeEndDate -> _uiState.update { it.copy(endDate = event.value) }
+            is HistoryEvent.ChangeStatus -> _uiState.update { it.copy(selectedStatus = event.status) }
             HistoryEvent.ApplyFilter -> applyFilter()
             HistoryEvent.ToggleFilter -> _uiState.update { it.copy(showFilter = !it.showFilter) }
             is HistoryEvent.LoadDetail -> loadDetail(event.transactionId)
+            is HistoryEvent.ShowDeleteConfirmation -> _uiState.update { it.copy(showDeleteDialog = true, transactionToDelete = event.transactionId) }
+            HistoryEvent.DismissDeleteConfirmation -> _uiState.update { it.copy(showDeleteDialog = false, transactionToDelete = null) }
+            HistoryEvent.ConfirmDelete -> confirmDelete()
+            HistoryEvent.DismissToast -> _toastMessage.value = null
         }
     }
 
@@ -77,9 +86,23 @@ class HistoryViewModel @Inject constructor(
         val s = _uiState.value
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            repo.getTransactionsByDateRange(s.startDate, s.endDate, onlyCompleted = true).collect { list ->
-                _uiState.update { it.copy(isLoading = false, transactions = list) }
+            repo.getTransactionsByDateRange(s.startDate, s.endDate, onlyCompleted = false).collect { list ->
+                val filtered = if (s.selectedStatus != null) {
+                    list.filter { it.status == s.selectedStatus }
+                } else {
+                    list
+                }
+                _uiState.update { it.copy(isLoading = false, transactions = filtered) }
             }
+        }
+    }
+
+    private fun confirmDelete() {
+        val txId = _uiState.value.transactionToDelete ?: return
+        viewModelScope.launch {
+            repo.softDeleteTransaction(txId)
+            _uiState.update { it.copy(showDeleteDialog = false, transactionToDelete = null) }
+            _toastMessage.value = "Transaksi berhasil dihapus"
         }
     }
 
@@ -99,6 +122,15 @@ class HistoryViewModel @Inject constructor(
     fun deleteTransaction(transactionId: String) {
         viewModelScope.launch { repo.softDeleteTransaction(transactionId) }
     }
+
+    suspend fun loadAllTransactionItems(transactionIds: List<String>): Map<String, List<TransactionItemEntity>> {
+        val itemsMap = mutableMapOf<String, List<TransactionItemEntity>>()
+        transactionIds.forEach { txId ->
+            val items = repo.getTransactionItems(txId).first()
+            itemsMap[txId] = items
+        }
+        return itemsMap
+    }
 }
 
 data class HistoryUiState(
@@ -107,7 +139,10 @@ data class HistoryUiState(
     val showFilter: Boolean = false,
     val range: DateRange = DateRange.TODAY,
     val startDate: Long = Calendar.getInstance().let { cal -> cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0); cal.timeInMillis },
-    val endDate: Long = System.currentTimeMillis()
+    val endDate: Long = System.currentTimeMillis(),
+    val selectedStatus: TransactionStatus? = null,
+    val showDeleteDialog: Boolean = false,
+    val transactionToDelete: String? = null
 )
 
 data class HistoryDetailUiState(
@@ -120,7 +155,12 @@ sealed class HistoryEvent {
     data class ChangeRange(val range: DateRange) : HistoryEvent()
     data class ChangeStartDate(val value: Long) : HistoryEvent()
     data class ChangeEndDate(val value: Long) : HistoryEvent()
+    data class ChangeStatus(val status: TransactionStatus?) : HistoryEvent()
     data object ApplyFilter : HistoryEvent()
     data object ToggleFilter : HistoryEvent()
     data class LoadDetail(val transactionId: String) : HistoryEvent()
+    data class ShowDeleteConfirmation(val transactionId: String) : HistoryEvent()
+    data object DismissDeleteConfirmation : HistoryEvent()
+    data object ConfirmDelete : HistoryEvent()
+    data object DismissToast : HistoryEvent()
 }

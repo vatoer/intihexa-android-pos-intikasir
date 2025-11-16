@@ -143,10 +143,8 @@ fun NavGraphBuilder.homeNavGraph(
                 }
             },
             onDelete = { tx ->
-                scope.launch {
-                    historyVm.deleteTransaction(tx.id)
-                    navController.navigateUp()
-                }
+                // Dialog is shown by ViewModel, just navigate back after confirm
+                navController.navigateUp()
             },
             isAdmin = currentUser?.role == UserRole.ADMIN
         )

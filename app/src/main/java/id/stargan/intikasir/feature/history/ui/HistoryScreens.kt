@@ -9,16 +9,23 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.TransactionEntity
+import id.stargan.intikasir.data.local.entity.TransactionStatus
 import id.stargan.intikasir.feature.history.viewmodel.HistoryEvent
 import id.stargan.intikasir.feature.history.viewmodel.HistoryViewModel
+import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
+import id.stargan.intikasir.feature.history.ui.components.formatDateRange
+import id.stargan.intikasir.feature.history.util.ExportUtil
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -31,12 +38,29 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val toastMessage by viewModel.toastMessage.collectAsState()
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
     val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply { maximumFractionDigits = 0 } }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Calculate summary
     val totalTransactions = uiState.transactions.size
     val totalRevenue = uiState.transactions.sumOf { it.total }
+
+    var showExportMenu by remember { mutableStateOf(false) }
+
+    // Show toast message
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onEvent(HistoryEvent.DismissToast)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -51,9 +75,48 @@ fun HistoryScreen(
                     IconButton(onClick = { viewModel.onEvent(HistoryEvent.ToggleFilter) }) {
                         Icon(Icons.Default.FilterList, contentDescription = null)
                     }
+                    IconButton(onClick = { showExportMenu = true }) {
+                        Icon(Icons.Default.FileDownload, contentDescription = "Export")
+                    }
+                    DropdownMenu(
+                        expanded = showExportMenu,
+                        onDismissRequest = { showExportMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Export Ringkasan CSV") },
+                            onClick = {
+                                scope.launch {
+                                    // Load items for all transactions
+                                    val transactionIds = uiState.transactions.map { it.id }
+                                    val itemsMap = viewModel.loadAllTransactionItems(transactionIds)
+
+                                    val file = ExportUtil.exportToCSV(context, uiState.transactions, itemsMap)
+                                    ExportUtil.shareCSV(context, file)
+                                    showExportMenu = false
+                                    snackbarHostState.showSnackbar("Laporan berhasil diekspor")
+                                }
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Export Detail CSV") },
+                            onClick = {
+                                scope.launch {
+                                    // Load items for all transactions
+                                    val transactionIds = uiState.transactions.map { it.id }
+                                    val itemsMap = viewModel.loadAllTransactionItems(transactionIds)
+
+                                    val file = ExportUtil.exportDetailedToCSV(context, uiState.transactions, itemsMap)
+                                    ExportUtil.shareCSV(context, file)
+                                    showExportMenu = false
+                                    snackbarHostState.showSnackbar("Laporan detail berhasil diekspor")
+                                }
+                            }
+                        )
+                    }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -65,9 +128,11 @@ fun HistoryScreen(
                     selectedRange = uiState.range,
                     startDate = uiState.startDate,
                     endDate = uiState.endDate,
+                    selectedStatus = uiState.selectedStatus,
                     onRangeChange = { viewModel.onEvent(HistoryEvent.ChangeRange(it)) },
                     onStartDateChange = { viewModel.onEvent(HistoryEvent.ChangeStartDate(it)) },
                     onEndDateChange = { viewModel.onEvent(HistoryEvent.ChangeEndDate(it)) },
+                    onStatusChange = { viewModel.onEvent(HistoryEvent.ChangeStatus(it)) },
                     onApply = { viewModel.onEvent(HistoryEvent.ApplyFilter) }
                 )
             }
@@ -143,13 +208,18 @@ private fun HistoryFilterBar(
     selectedRange: DateRange,
     startDate: Long,
     endDate: Long,
+    selectedStatus: TransactionStatus?,
     onRangeChange: (DateRange) -> Unit,
     onStartDateChange: (Long) -> Unit,
     onEndDateChange: (Long) -> Unit,
+    onStatusChange: (TransactionStatus?) -> Unit,
     onApply: () -> Unit
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Preset chips
+        // Date range chips
+        Text("Periode", style = MaterialTheme.typography.labelMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DateRange.values().forEach { range ->
                 FilterChip(
@@ -159,28 +229,47 @@ private fun HistoryFilterBar(
                 )
             }
         }
+
+        // Show date range for custom
         if (selectedRange == DateRange.CUSTOM) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = startDate.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Dari") },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = endDate.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Sampai") },
-                    modifier = Modifier.weight(1f)
+            OutlinedButton(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(formatDateRange(startDate, endDate))
+            }
+        }
+
+        // Status filter
+        Text("Status", style = MaterialTheme.typography.labelMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selectedStatus == null,
+                onClick = { onStatusChange(null) },
+                label = { Text("Semua") }
+            )
+            TransactionStatus.values().forEach { status ->
+                FilterChip(
+                    selected = selectedStatus == status,
+                    onClick = { onStatusChange(status) },
+                    label = { Text(status.name) }
                 )
             }
         }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Button(onClick = onApply) { Text("Terapkan") }
         }
     }
+
+    DateRangePickerModal(
+        showDialog = showDatePicker,
+        onDismiss = { showDatePicker = false },
+        onDateRangeSelected = { start, end ->
+            onStartDateChange(start)
+            onEndDateChange(end)
+        }
+    )
 }
 
 @Composable
@@ -221,10 +310,52 @@ fun HistoryDetailScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.detailUiState.collectAsState()
+    val listUiState by viewModel.uiState.collectAsState()
+    val toastMessage by viewModel.toastMessage.collectAsState()
     val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply { maximumFractionDigits = 0 } }
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(transactionId) { viewModel.onEvent(HistoryEvent.LoadDetail(transactionId)) }
+
+    // Show toast message
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onEvent(HistoryEvent.DismissToast)
+        }
+    }
+
+    // Delete confirmation dialog
+    if (listUiState.showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(HistoryEvent.DismissDeleteConfirmation) },
+            title = { Text("Hapus Transaksi?") },
+            text = { Text("Transaksi yang dihapus tidak dapat dikembalikan. Apakah Anda yakin ingin menghapus transaksi ini?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.onEvent(HistoryEvent.ConfirmDelete)
+                        onDelete(uiState.transaction!!)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Hapus")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(HistoryEvent.DismissDeleteConfirmation) }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -234,7 +365,8 @@ fun HistoryDetailScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (uiState.isLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -306,12 +438,22 @@ fun HistoryDetailScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { onPrint(tx) }, modifier = Modifier.weight(1f)) {
+                            Button(onClick = {
+                                onPrint(tx)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Struk berhasil dicetak")
+                                }
+                            }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Print, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
                                 Text("Cetak")
                             }
-                            Button(onClick = { onShare(tx) }, modifier = Modifier.weight(1f)) {
+                            Button(onClick = {
+                                onShare(tx)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Struk berhasil dibagikan")
+                                }
+                            }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Share, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
                                 Text("Bagikan")
@@ -320,7 +462,7 @@ fun HistoryDetailScreen(
                         // Delete button - only for Admin
                         if (isAdmin) {
                             OutlinedButton(
-                                onClick = { onDelete(tx) },
+                                onClick = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                             ) {
