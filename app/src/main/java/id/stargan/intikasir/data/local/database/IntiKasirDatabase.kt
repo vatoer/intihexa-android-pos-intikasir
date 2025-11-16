@@ -12,9 +12,10 @@ import id.stargan.intikasir.data.local.entity.*
         ProductEntity::class,
         TransactionEntity::class,
         TransactionItemEntity::class,
-        StoreSettingsEntity::class
+        StoreSettingsEntity::class,
+        ExpenseEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class IntiKasirDatabase : RoomDatabase() {
@@ -25,6 +26,7 @@ abstract class IntiKasirDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun transactionItemDao(): TransactionItemDao
     abstract fun storeSettingsDao(): StoreSettingsDao
+    abstract fun expenseDao(): ExpenseDao
 
     companion object {
         const val DATABASE_NAME = "intikasir_database"

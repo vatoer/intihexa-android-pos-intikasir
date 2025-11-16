@@ -69,12 +69,12 @@ fun ReceiptScreen(
                     .fillMaxWidth()
                     .padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(

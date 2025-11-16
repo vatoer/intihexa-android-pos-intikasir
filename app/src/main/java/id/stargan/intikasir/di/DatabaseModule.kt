@@ -66,4 +66,10 @@ object DatabaseModule {
     fun provideStoreSettingsDao(database: IntiKasirDatabase): StoreSettingsDao {
         return database.storeSettingsDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideExpenseDao(database: IntiKasirDatabase): ExpenseDao {
+        return database.expenseDao()
+    }
 }

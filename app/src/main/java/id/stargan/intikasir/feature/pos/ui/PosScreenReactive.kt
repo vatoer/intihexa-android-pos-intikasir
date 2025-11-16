@@ -168,25 +168,44 @@ fun PosScreenReactive(
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
-                    val filtered = state.products.filter { p ->
-                        val q = state.searchQuery.trim().lowercase()
-                        if (q.isEmpty()) true
-                        else p.name.lowercase().contains(q) || (p.barcode?.lowercase()?.contains(q) == true)
+                    // Safety: if fresh install and seeding just happened, products might still be empty momentarily.
+                    val noProductsYet = state.products.isEmpty()
+                    var retried by remember { mutableStateOf(false) }
+                    LaunchedEffect(noProductsYet, retried) {
+                        if (noProductsYet && !retried) {
+                            // give a tiny grace period for seeding/flows to emit
+                            kotlinx.coroutines.delay(300)
+                            retried = true
+                        }
                     }
 
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filtered, key = { it.id }) { product ->
-                            val item = state.transactionItems.find { it.productId == product.id }
-                            PosProductItemReactive(
-                                product = product,
-                                transactionItem = item,
-                                onAdd = { viewModel.addOrIncrement(product.id) },
-                                onChangeQty = { qty -> viewModel.setQuantity(product.id, qty) },
-                                onSetDiscount = { discount -> viewModel.setItemDiscount(product.id, discount) }
-                            )
+                    if (noProductsYet && retried) {
+                        Text(
+                            text = "Menyiapkan data produk awal...",
+                            modifier = Modifier.align(Alignment.Center),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        val filtered = state.products.filter { p ->
+                            val q = state.searchQuery.trim().lowercase()
+                            if (q.isEmpty()) true
+                            else p.name.lowercase().contains(q) || (p.barcode?.lowercase()?.contains(q) == true)
+                        }
+
+                        LazyColumn(
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(filtered, key = { it.id }) { product ->
+                                val item = state.transactionItems.find { it.productId == product.id }
+                                PosProductItemReactive(
+                                    product = product,
+                                    transactionItem = item,
+                                    onAdd = { viewModel.addOrIncrement(product.id) },
+                                    onChangeQty = { qty -> viewModel.setQuantity(product.id, qty) },
+                                    onSetDiscount = { discount -> viewModel.setItemDiscount(product.id, discount) }
+                                )
+                            }
                         }
                     }
                 }

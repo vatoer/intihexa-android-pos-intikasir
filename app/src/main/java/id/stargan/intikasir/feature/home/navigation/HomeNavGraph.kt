@@ -36,6 +36,8 @@ import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
 import id.stargan.intikasir.feature.history.ui.HistoryScreen
 import id.stargan.intikasir.feature.history.ui.HistoryDetailScreen
+import id.stargan.intikasir.feature.expense.ui.ExpenseListScreen
+import id.stargan.intikasir.feature.expense.ui.ExpenseFormScreen
 import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
 import id.stargan.intikasir.domain.model.UserRole
 import javax.inject.Inject
@@ -51,6 +53,22 @@ fun NavGraphBuilder.homeNavGraph(
     onLogout: () -> Unit
 ) {
     composable(HomeRoutes.HOME) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val homeVm = androidx.hilt.navigation.compose.hiltViewModel<id.stargan.intikasir.feature.home.ui.HomeViewModel>()
+        val userState = homeVm.currentUser.collectAsState()
+
+        // Force logout if no current user (e.g., after reinstall) after a short grace
+        LaunchedEffect(userState.value) {
+            if (userState.value == null) {
+                kotlinx.coroutines.delay(400)
+                if (homeVm.currentUser.value == null) {
+                    android.widget.Toast.makeText(context, "Sesi berakhir, silakan login lagi", android.widget.Toast.LENGTH_SHORT).show()
+                    onLogout()
+                    return@LaunchedEffect
+                }
+            }
+        }
+
         HomeScreen(
             onMenuClick = { route ->
                 if (route == "cashier") {
@@ -167,7 +185,28 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(HomeRoutes.EXPENSES) {
-        PlaceholderScreen(title = "Pengeluaran", onBack = { navController.navigateUp() })
+        ExpenseListScreen(
+            onBack = { navController.navigateUp() },
+            onAddExpense = { navController.navigate("${HomeRoutes.EXPENSES}/add") },
+            onExpenseClick = { expenseId ->
+                navController.navigate("${HomeRoutes.EXPENSES}/detail/$expenseId")
+            }
+        )
+    }
+
+    composable("${HomeRoutes.EXPENSES}/add") {
+        ExpenseFormScreen(
+            onBack = { navController.navigateUp() },
+            onSaveSuccess = { navController.navigateUp() }
+        )
+    }
+
+    composable("${HomeRoutes.EXPENSES}/detail/{expenseId}") {
+        // TODO: Implement detail/edit screen
+        PlaceholderScreen(
+            title = "Detail Pengeluaran",
+            onBack = { navController.navigateUp() }
+        )
     }
 
     composable(HomeRoutes.REPORTS) {
