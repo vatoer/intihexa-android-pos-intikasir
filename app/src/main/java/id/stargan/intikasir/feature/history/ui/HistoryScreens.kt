@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -308,6 +310,8 @@ fun HistoryDetailScreen(
     onShare: (TransactionEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
     onEdit: (String) -> Unit,
+    onPrintQueue: (TransactionEntity) -> Unit,
+    onComplete: (TransactionEntity) -> Unit,
     isAdmin: Boolean = false,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
@@ -318,6 +322,8 @@ fun HistoryDetailScreen(
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var completing by remember { mutableStateOf(false) }
 
     LaunchedEffect(transactionId) { viewModel.onEvent(HistoryEvent.LoadDetail(transactionId)) }
 
@@ -457,38 +463,59 @@ fun HistoryDetailScreen(
                             }
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = {
-                                onPrint(tx)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Struk berhasil dicetak")
-                                }
-                            }, modifier = Modifier.weight(1f)) {
+                        // If status is PAID -> show Selesai
+                        if (tx.status == TransactionStatus.PAID) {
+                            Button(
+                                onClick = {
+                                    completing = true
+                                    onComplete(tx)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Transaksi ditandai selesai")
+                                    }
+                                },
+                                enabled = !completing,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Done, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Selesai")
+                            }
+                        }
+
+                        // Row: Cetak & Bagikan
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(onClick = { onPrint(tx) }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Print, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
                                 Text("Cetak")
                             }
-                            Button(onClick = {
-                                onShare(tx)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Struk berhasil dibagikan")
-                                }
-                            }, modifier = Modifier.weight(1f)) {
+                            Button(onClick = { onShare(tx) }, modifier = Modifier.weight(1f)) {
                                 Icon(Icons.Default.Share, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
                                 Text("Bagikan")
                             }
                         }
-                        // Delete button - only for Admin
-                        if (isAdmin) {
-                            OutlinedButton(
-                                onClick = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = null)
+
+                        // Row: Antrian & (Admin) Hapus
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(onClick = {
+                                onPrintQueue(tx)
+                                scope.launch { snackbarHostState.showSnackbar("Tiket antrian dicetak") }
+                            }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.Receipt, contentDescription = null)
                                 Spacer(Modifier.width(6.dp))
-                                Text("Hapus Transaksi (Admin)")
+                                Text("Antrian")
+                            }
+                            if (isAdmin) {
+                                OutlinedButton(
+                                    onClick = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = null)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Hapus (Admin)")
+                                }
                             }
                         }
                     }

@@ -41,6 +41,7 @@ import id.stargan.intikasir.domain.model.UserRole
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
+import id.stargan.intikasir.data.local.entity.TransactionStatus
 
 /**
  * Navigation graph untuk Home feature
@@ -150,6 +151,15 @@ fun NavGraphBuilder.homeNavGraph(
                 // Navigate to POS screen with transaction ID for editing
                 navController.navigate("pos/$transactionId") {
                     popUpTo(HomeRoutes.HISTORY) { inclusive = false }
+                }
+            },
+            onPrintQueue = { tx ->
+                val settings = settingsState.settings
+                ReceiptPrinter.printQueueOrPdf(context, settings, tx)
+            },
+            onComplete = { tx ->
+                scope.launch {
+                    posVm.completeTransaction(tx.id)
                 }
             },
             isAdmin = currentUser?.role == UserRole.ADMIN
@@ -287,16 +297,11 @@ fun NavGraphBuilder.homeNavGraph(
             onPrintQueue = {
                 val tx = state.transaction ?: return@ReceiptScreen
                 val settings = settingsState.settings
-                val result = ReceiptPrinter.generateQueueTicketPdf(
+                // Use ESC/POS if available; otherwise fallback to PDF
+                ReceiptPrinter.printQueueOrPdf(
                     context = context,
                     settings = settings,
                     transaction = tx
-                )
-                ReceiptPrinter.printOrSave(
-                    context = context,
-                    settings = settings,
-                    pdfUri = result.pdfUri,
-                    jobName = result.fileName
                 )
             },
             onShare = {

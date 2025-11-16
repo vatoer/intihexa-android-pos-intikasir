@@ -671,6 +671,19 @@ object ReceiptPrinter {
         val w = paint.measureText(text)
         canvas.drawText(text, cx - w / 2f, y, paint)
     }
+
+    fun printQueueOrPdf(
+        context: Context,
+        settings: StoreSettings?,
+        transaction: TransactionEntity
+    ) {
+        if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
+            ESCPosPrinter.printQueueTicket(context, settings, transaction)
+        } else {
+            val result = generateQueueTicketPdf(context, settings, transaction)
+            printOrSave(context, settings, result.pdfUri, result.fileName)
+        }
+    }
 }
 
 private class PdfFilePrintAdapter(
