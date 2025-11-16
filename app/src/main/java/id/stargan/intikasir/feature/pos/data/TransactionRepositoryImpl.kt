@@ -241,4 +241,19 @@ class TransactionRepositoryImpl @Inject constructor(
             productDao.decrementStock(item.productId, item.quantity)
         }
     }
+
+    override fun getAllTransactions(): Flow<List<TransactionEntity>> =
+        transactionDao.getAllTransactions()
+
+    override fun getTransactionsByDateRange(startDate: Long, endDate: Long, onlyCompleted: Boolean): Flow<List<TransactionEntity>> {
+        return if (onlyCompleted) transactionDao.getTransactionsByDateRange(startDate, endDate)
+        else transactionDao.getTransactionsByDateRangeAllStatus(startDate, endDate)
+    }
+
+    override fun getTransactionsByDate(date: Long): Flow<List<TransactionEntity>> =
+        transactionDao.getTransactionsByDate(date)
+
+    override suspend fun softDeleteTransaction(transactionId: String) = withContext(Dispatchers.IO) {
+        transactionDao.softDeleteTransaction(transactionId)
+    }
 }

@@ -124,4 +124,12 @@ interface TransactionDao {
         status: TransactionStatus,
         timestamp: Long = System.currentTimeMillis()
     )
+
+    @Query("""
+        SELECT * FROM transactions 
+        WHERE transactionDate BETWEEN :startDate AND :endDate 
+        AND isDeleted = 0 
+        ORDER BY transactionDate DESC
+    """)
+    fun getTransactionsByDateRangeAllStatus(startDate: Long, endDate: Long): Flow<List<TransactionEntity>>
 }

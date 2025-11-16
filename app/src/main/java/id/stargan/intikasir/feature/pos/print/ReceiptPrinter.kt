@@ -41,119 +41,244 @@ object ReceiptPrinter {
         val canvas = page.canvas
 
         val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-        val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+        val dateFormat = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale("id", "ID"))
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            textSize = 16f
+            textSize = 20f
         }
-        val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f }
+        val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { 
+            textSize = 10f
+            color = Color.DKGRAY
+        }
         val normalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f }
         val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 12f
         }
+        val headerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 14f
+        }
 
         var y = 40f
-        val xPadding = 24f
+        val xPadding = 40f
+        val centerX = pageInfo.pageWidth / 2f
 
-        // Logo (optional)
+        // Logo (if enabled and available)
         if (settings?.printLogo == true && !settings.storeLogo.isNullOrBlank()) {
             try {
-                val bmp = BitmapFactory.decodeFile(settings.storeLogo)
-                if (bmp != null) {
-                    val maxW = 120
-                    val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                    val w = maxW
-                    val h = (maxW / ratio).toInt().coerceAtLeast(1)
-                    val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
-                    val cx = (pageInfo.pageWidth - scaled.width) / 2f
-                    canvas.drawBitmap(scaled, cx, y, paint)
-                    y += scaled.height + 12
+                val logoFile = File(settings.storeLogo)
+                if (logoFile.exists()) {
+                    val bmp = BitmapFactory.decodeFile(settings.storeLogo)
+                    if (bmp != null) {
+                        val maxW = 100
+                        val ratio = bmp.width.toFloat() / bmp.height.toFloat()
+                        val w = maxW
+                        val h = (maxW / ratio).toInt().coerceAtLeast(1)
+                        val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
+                        val cx = (pageInfo.pageWidth - scaled.width) / 2f
+                        canvas.drawBitmap(scaled, cx, y, paint)
+                        y += scaled.height + 16
+                        bmp.recycle()
+                        scaled.recycle()
+                    }
                 }
             } catch (_: Exception) { }
         }
 
-        // Store name & address
+        // Store name & info
         val storeName = settings?.storeName?.takeIf { it.isNotBlank() } ?: "Nama Toko"
         val storeAddr = settings?.storeAddress?.takeIf { it.isNotBlank() } ?: "Alamat toko"
-        drawCenteredText(canvas, storeName, pageInfo.pageWidth / 2f, y, titlePaint)
-        y += 20
-        drawCenteredText(canvas, storeAddr, pageInfo.pageWidth / 2f, y, smallPaint)
-        y += 16
+        val storePhone = settings?.storePhone?.takeIf { it.isNotBlank() }
+        
+        drawCenteredText(canvas, storeName, centerX, y, titlePaint)
+        y += 24
+        drawCenteredText(canvas, storeAddr, centerX, y, smallPaint)
+        y += 14
+        storePhone?.let {
+            drawCenteredText(canvas, "Telp: $it", centerX, y, smallPaint)
+            y += 14
+        }
+        
+        // Custom header
+        settings?.receiptHeader?.let {
+            if (it.isNotBlank()) {
+                y += 6
+                it.split("\n").take(3).forEach { line ->
+                    if (line.isNotBlank()) {
+                        drawCenteredText(canvas, line.trim(), centerX, y, smallPaint)
+                        y += 14
+                    }
+                }
+            }
+        }
+        
+        y += 10
 
         // Separator
-        paint.strokeWidth = 1f
+        y += 4f  // padding before divider
+        paint.strokeWidth = 2f
         canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
-        y += 12
+        y += 22f  // padding after divider
+
+        // Receipt Title
+        drawCenteredText(canvas, "STRUK PEMBAYARAN", centerX, y, headerPaint)
+        y += 24
 
         // Transaction header
         val dateStr = dateFormat.format(Date(transaction.updatedAt))
-        canvas.drawText("No: ${transaction.transactionNumber}", xPadding, y, normalPaint)
-        canvas.drawText(dateStr, pageInfo.pageWidth - xPadding - normalPaint.measureText(dateStr), y, normalPaint)
+        canvas.drawText("No. Transaksi:", xPadding, y, boldPaint)
+        canvas.drawText(transaction.transactionNumber, xPadding + 100f, y, normalPaint)
         y += 16
+        canvas.drawText("Tanggal:", xPadding, y, boldPaint)
+        canvas.drawText(dateStr, xPadding + 100f, y, normalPaint)
+        y += 16
+        canvas.drawText("Kasir:", xPadding, y, boldPaint)
+        canvas.drawText(transaction.cashierName, xPadding + 100f, y, normalPaint)
+        y += 20f
+
+        // Separator
+        y += 4f  // padding before divider
+        paint.strokeWidth = 1f
+        paint.color = Color.LTGRAY
+        canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
+        y += 18f  // padding after divider
+
+        // Items table header
+        val qtyColumnX = pageInfo.pageWidth - 250f  // Adjusted for better spacing
+        val priceColumnX = pageInfo.pageWidth - 180f  // Adjusted for better spacing
+        val subtotalColumnX = pageInfo.pageWidth - xPadding - boldPaint.measureText("00.000.000")  // Space for millions
+
+        canvas.drawText("Item", xPadding, y, boldPaint)
+        canvas.drawText("Qty", qtyColumnX, y, boldPaint)
+        canvas.drawText("Harga", priceColumnX, y, boldPaint)
+        canvas.drawText("Subtotal", pageInfo.pageWidth - xPadding - boldPaint.measureText("Subtotal"), y, boldPaint)
+        y += 6f  // padding before divider
+        canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
+        y += 16f  // padding after divider
 
         // Items
         items.forEach { item ->
             val name = item.productName
-            val qtyPrice = "${item.quantity} x ${nf.format(item.unitPrice).replace("Rp", "Rp ")}"
+            val qty = "${item.quantity}"
+            val price = nf.format(item.unitPrice).replace("Rp", "Rp ")
             val sub = nf.format(item.subtotal).replace("Rp", "Rp ")
 
             // Name
             canvas.drawText(name, xPadding, y, normalPaint)
-            y += 14
-            // qty and subtotal
-            canvas.drawText(qtyPrice, xPadding, y, smallPaint)
-            canvas.drawText(sub, pageInfo.pageWidth - xPadding - smallPaint.measureText(sub), y, smallPaint)
-            y += 18
+            canvas.drawText(qty, qtyColumnX, y, normalPaint)
+            canvas.drawText(price, priceColumnX, y, normalPaint)
+            canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
+            y += 18f
+
+            // Discount if any
+            if (item.discount > 0) {
+                val discPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
+                canvas.drawText(discPart, xPadding + 20f, y, smallPaint)
+                y += 14f
+            }
         }
 
+        y += 8f  // padding before divider
         // Separator
         canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
-        y += 12
+        y += 18f  // padding after divider
 
-        // Totals
+        // Totals - right aligned
+        val rightX = pageInfo.pageWidth - xPadding
+        val labelX = rightX - 150f
+        
         val subtotalStr = nf.format(transaction.subtotal).replace("Rp", "Rp ")
         val taxStr = nf.format(transaction.tax).replace("Rp", "Rp ")
         val discountStr = nf.format(transaction.discount).replace("Rp", "Rp ")
         val totalStr = nf.format(transaction.total).replace("Rp", "Rp ")
 
-        canvas.drawText("Subtotal", xPadding, y, normalPaint)
-        canvas.drawText(subtotalStr, pageInfo.pageWidth - xPadding - normalPaint.measureText(subtotalStr), y, normalPaint)
-        y += 14
+        canvas.drawText("Subtotal:", labelX, y, normalPaint)
+        canvas.drawText(subtotalStr, rightX - normalPaint.measureText(subtotalStr), y, normalPaint)
+        y += 16
 
         if (transaction.tax > 0) {
-            canvas.drawText("PPN", xPadding, y, normalPaint)
-            canvas.drawText(taxStr, pageInfo.pageWidth - xPadding - normalPaint.measureText(taxStr), y, normalPaint)
-            y += 14
+            canvas.drawText("PPN:", labelX, y, normalPaint)
+            canvas.drawText(taxStr, rightX - normalPaint.measureText(taxStr), y, normalPaint)
+            y += 16
         }
         if (transaction.discount > 0) {
-            canvas.drawText("Diskon", xPadding, y, normalPaint)
-            canvas.drawText("-$discountStr", pageInfo.pageWidth - xPadding - normalPaint.measureText("-$discountStr"), y, normalPaint)
-            y += 14
+            canvas.drawText("Diskon:", labelX, y, normalPaint)
+            canvas.drawText("-$discountStr", rightX - normalPaint.measureText("-$discountStr"), y, normalPaint)
+            y += 16
         }
 
-        canvas.drawText("Total", xPadding, y, boldPaint)
-        canvas.drawText(totalStr, pageInfo.pageWidth - xPadding - boldPaint.measureText(totalStr), y, boldPaint)
-        y += 18
+        y += 8f  // padding before divider
+        paint.strokeWidth = 2f
+        paint.color = Color.BLACK
+        canvas.drawLine(labelX - 10f, y, rightX, y, paint)
+        y += 20f  // padding after divider
+
+        // Grand Total
+        val grandTotalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 16f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        canvas.drawText("TOTAL:", labelX, y, grandTotalPaint)
+        canvas.drawText(totalStr, rightX - grandTotalPaint.measureText(totalStr), y, grandTotalPaint)
+        y += 24
+
+        // Payment method
+        val paymentMethodName = when (transaction.paymentMethod.name) {
+            "CASH" -> "Tunai"
+            "DEBIT" -> "Debit"
+            "CREDIT" -> "Kredit"
+            "QRIS" -> "QRIS"
+            "TRANSFER" -> "Transfer"
+            else -> transaction.paymentMethod.name
+        }
+        canvas.drawText("Metode Pembayaran:", labelX, y, normalPaint)
+        canvas.drawText(paymentMethodName, rightX - normalPaint.measureText(paymentMethodName), y, normalPaint)
+        y += 16
 
         // Payment info if cash
-        val received = transaction.cashReceived // already non-null in entity but safe if nullable
+        val received = transaction.cashReceived
         if (received > 0) {
             val receivedStr = nf.format(received).replace("Rp", "Rp ")
             val change = (received - transaction.total).coerceAtLeast(0.0)
             val changeStr = nf.format(change).replace("Rp", "Rp ")
-            canvas.drawText("Tunai diterima", xPadding, y, normalPaint)
-            canvas.drawText(receivedStr, pageInfo.pageWidth - xPadding - normalPaint.measureText(receivedStr), y, normalPaint)
-            y += 14
-            canvas.drawText("Kembalian", xPadding, y, normalPaint)
-            canvas.drawText(changeStr, pageInfo.pageWidth - xPadding - normalPaint.measureText(changeStr), y, normalPaint)
-            y += 14
+            
+            canvas.drawText("Dibayar:", labelX, y, normalPaint)
+            canvas.drawText(receivedStr, rightX - normalPaint.measureText(receivedStr), y, normalPaint)
+            y += 16
+            
+            if (change > 0) {
+                canvas.drawText("Kembalian:", labelX, y, boldPaint)
+                canvas.drawText(changeStr, rightX - boldPaint.measureText(changeStr), y, boldPaint)
+                y += 16
+            }
         }
 
         // Footer
-        y += 10
-        drawCenteredText(canvas, "Terima kasih telah berbelanja", pageInfo.pageWidth / 2f, y, smallPaint)
+        y += 20f
+        y += 4f  // padding before divider
+        paint.strokeWidth = 1f
+        paint.color = Color.LTGRAY
+        canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
+        y += 18f  // padding after divider
+
+        drawCenteredText(canvas, "Terima kasih atas kunjungan Anda", centerX, y, normalPaint)
+        y += 16
+        
+        settings?.receiptFooter?.let {
+            if (it.isNotBlank()) {
+                it.split("\n").take(3).forEach { line ->
+                    if (line.isNotBlank()) {
+                        drawCenteredText(canvas, line.trim(), centerX, y, smallPaint)
+                        y += 14
+                    }
+                }
+                y += 6
+            }
+        }
+        
+        drawCenteredText(canvas, "-- Struk ini sah tanpa tanda tangan --", centerX, y, smallPaint)
 
         doc.finishPage(page)
 
@@ -174,65 +299,152 @@ object ReceiptPrinter {
         val charsPerLine = settings?.paperCharPerLine ?: if (paperWidthMm >= 80) 48 else 32
         // Approximate pixel width for 58mm (~384px) and 80mm (~576px)
         val pageWidthPx = if (paperWidthMm >= 80) 576 else 384
-        val pageHeightPx = 800 // will grow if needed (simple single page assumption)
+        val pageHeightPx = 1400 // Increased height for better layout
         val doc = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(pageWidthPx, pageHeightPx, 1).create()
         val page = doc.startPage(pageInfo)
         val canvas = page.canvas
 
         val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-        val dateFormat = SimpleDateFormat("dd/MM/yy HH:mm", Locale("id", "ID"))
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
 
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f }
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { 
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+        }
         val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = 14f
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
-        val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f }
-        val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 1f }
+        val smallPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { 
+            textSize = 11f 
+            color = Color.DKGRAY
+        }
+        val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { 
+            strokeWidth = 1f
+            color = Color.LTGRAY
+        }
+        val boldDividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { 
+            strokeWidth = 2f
+            color = Color.BLACK
+        }
 
-        var y = 20f
-        val left = 10f
-        val right = pageWidthPx - 10f
+        var y = 16f
+        val left = 12f
+        val right = pageWidthPx - 12f
+        val centerX = pageWidthPx / 2f
 
-        fun drawLine() {
-            canvas.drawLine(left, y, right, y, dividerPaint)
-            y += 8
+        fun drawLine(bold: Boolean = false) {
+            y += 4f  // padding before line
+            canvas.drawLine(left, y, right, y, if (bold) boldDividerPaint else dividerPaint)
+            y += if (bold) 12f else 10f  // padding after line
         }
 
         fun drawTextLine(line: String, paint: Paint = textPaint) {
             canvas.drawText(line.take(charsPerLine), left, y, paint)
-            y += 18
+            y += 18f
         }
 
-        // Header
+        // Logo (if enabled and available)
+        if (settings?.printLogo == true && !settings.storeLogo.isNullOrBlank()) {
+            try {
+                val logoFile = File(settings.storeLogo)
+                if (logoFile.exists()) {
+                    val bmp = BitmapFactory.decodeFile(settings.storeLogo)
+                    if (bmp != null) {
+                        val maxW = if (paperWidthMm >= 80) 120 else 80
+                        val ratio = bmp.width.toFloat() / bmp.height.toFloat()
+                        val w = maxW
+                        val h = (maxW / ratio).toInt().coerceAtLeast(1)
+                        val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
+                        val cx = (pageWidthPx - scaled.width) / 2f
+                        canvas.drawBitmap(scaled, cx, y, null)
+                        y += scaled.height + 8
+                        bmp.recycle()
+                        scaled.recycle()
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        // Header - Store Name
         val name = (settings?.storeName ?: "Toko").uppercase()
+        canvas.drawText(name, centerX, y, titlePaint)
+        y += 22f
+        
+        // Address and phone
         val addr = settings?.storeAddress ?: "Alamat"
-        drawCenteredText(canvas, name, pageWidthPx / 2f, y, boldPaint); y += 20
-        drawCenteredText(canvas, addr.take(charsPerLine), pageWidthPx / 2f, y, smallPaint); y += 18
+        if (addr.isNotBlank()) {
+            drawCenteredText(canvas, addr.take(charsPerLine), centerX, y, smallPaint)
+            y += 16f
+        }
+        val phone = settings?.storePhone ?: ""
+        if (phone.isNotBlank()) {
+            drawCenteredText(canvas, "Telp: $phone", centerX, y, smallPaint)
+            y += 16f
+        }
+        
+        // Custom header
         settings?.receiptHeader?.let {
             if (it.isNotBlank()) {
-                drawCenteredText(canvas, it.take(charsPerLine), pageWidthPx / 2f, y, smallPaint); y += 18
+                it.split("\n").take(3).forEach { line ->
+                    if (line.isNotBlank()) {
+                        drawCenteredText(canvas, line.trim().take(charsPerLine), centerX, y, smallPaint)
+                        y += 16f
+                    }
+                }
             }
         }
+        
+        drawLine(bold = true)
+        
+        // Transaction info
+        val dateStr = dateFormat.format(Date(transaction.updatedAt))
+        canvas.drawText("No: ${transaction.transactionNumber}", left, y, textPaint)
+        y += 16f
+        canvas.drawText("Tanggal: $dateStr", left, y, textPaint)
+        y += 16f
+        canvas.drawText("Kasir: ${transaction.cashierName}", left, y, textPaint)
+        y += 4f
         drawLine()
 
-        // Transaction info
-        drawTextLine("No: ${transaction.transactionNumber}")
-        drawTextLine(dateFormat.format(Date(transaction.updatedAt)))
+        // Items header
+        canvas.drawText("ITEM", left, y, boldPaint)
+        // Move JUMLAH column more to the left to accommodate larger amounts
+        val amountColumnX = right - 85f  // Adjusted from far right to support millions
+        canvas.drawText("JUMLAH", amountColumnX, y, boldPaint)
+        y += 4f
         drawLine()
 
         // Items
         items.forEach { item ->
-            drawTextLine(item.productName)
+            // Product name
+            val name = item.productName.take(charsPerLine - 12)  // Leave space for amount
+            canvas.drawText(name, left, y, textPaint)
+            y += 16f
+            
+            // Quantity, price and subtotal
             val qtyPart = "${item.quantity} x ${nf.format(item.unitPrice).replace("Rp", "Rp ")}"
             val subPart = nf.format(item.subtotal).replace("Rp", "Rp ")
-            // Right align subtotal
-            canvas.drawText(qtyPart.take(charsPerLine), left, y, smallPaint)
-            canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, smallPaint)
-            y += 18
+            canvas.drawText(qtyPart, left + 8f, y, smallPaint)
+            // Right align subtotal at the amount column
+            canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, textPaint)
+            y += 18f
+            
+            // Discount if any
+            if (item.discount > 0) {
+                val discountPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
+                canvas.drawText(discountPart, left + 8f, y, smallPaint)
+                y += 16f
+            }
         }
-        drawLine()
+        y += 4f
+        drawLine(bold = true)
 
         // Totals
         fun drawTotal(label: String, value: Double, paint: Paint = textPaint, negative: Boolean = false) {
@@ -240,27 +452,70 @@ object ReceiptPrinter {
             canvas.drawText(label, left, y, paint)
             val display = if (negative) "-$valueStr" else valueStr
             canvas.drawText(display, right - paint.measureText(display), y, paint)
-            y += 18
+            y += 18f
         }
-        drawTotal("Subtotal", transaction.subtotal)
-        if (transaction.tax > 0) drawTotal("PPN", transaction.tax)
+        
+        drawTotal("Subtotal", transaction.subtotal, textPaint)
+        if (transaction.tax > 0) drawTotal("PPN", transaction.tax, textPaint)
         if (transaction.discount > 0) drawTotal("Diskon", transaction.discount, textPaint, negative = true)
-        drawTotal("TOTAL", transaction.total, boldPaint)
-
-        val received = transaction.cashReceived // already non-null in entity but safe if nullable
-        if (received > 0) {
-            val change = (received - transaction.total).coerceAtLeast(0.0)
-            drawTotal("Tunai", received)
-            drawTotal("Kembali", change)
+        
+        y += 4f
+        drawLine(bold = true)
+        
+        // Grand Total - larger and bold
+        val grandTotalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 16f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
+        val totalStr = nf.format(transaction.total).replace("Rp", "Rp ")
+        canvas.drawText("TOTAL", left, y, grandTotalPaint)
+        canvas.drawText(totalStr, right - grandTotalPaint.measureText(totalStr), y, grandTotalPaint)
+        y += 22f
+        
         drawLine()
 
-        settings?.receiptFooter?.let {
-            if (it.isNotBlank()) {
-                drawCenteredText(canvas, it.take(charsPerLine), pageWidthPx / 2f, y, smallPaint); y += 18
+        // Payment info
+        val paymentMethodName = when (transaction.paymentMethod.name) {
+            "CASH" -> "Tunai"
+            "DEBIT" -> "Debit"
+            "CREDIT" -> "Kredit"
+            "QRIS" -> "QRIS"
+            "TRANSFER" -> "Transfer"
+            else -> transaction.paymentMethod.name
+        }
+        canvas.drawText("Metode: $paymentMethodName", left, y, textPaint)
+        y += 18f
+        
+        val received = transaction.cashReceived
+        if (received > 0) {
+            val change = (received - transaction.total).coerceAtLeast(0.0)
+            drawTotal("Dibayar", received, textPaint)
+            if (change > 0) {
+                drawTotal("Kembali", change, boldPaint)
             }
         }
-        drawCenteredText(canvas, "Terima kasih", pageWidthPx / 2f, y, smallPaint)
+        
+        y += 8f
+        drawLine(bold = true)
+
+        // Footer
+        y += 8f
+        drawCenteredText(canvas, "Terima kasih atas kunjungan Anda", centerX, y, textPaint)
+        y += 18f
+        
+        settings?.receiptFooter?.let {
+            if (it.isNotBlank()) {
+                it.split("\n").take(3).forEach { line ->
+                    if (line.isNotBlank()) {
+                        drawCenteredText(canvas, line.trim().take(charsPerLine), centerX, y, smallPaint)
+                        y += 16f
+                    }
+                }
+            }
+        }
+        
+        y += 8f
+        drawCenteredText(canvas, "-- Struk ini sah tanpa tanda tangan --", centerX, y, smallPaint)
 
         doc.finishPage(page)
         val fileName = "Receipt-${transaction.transactionNumber}-${paperWidthMm}mm.pdf"

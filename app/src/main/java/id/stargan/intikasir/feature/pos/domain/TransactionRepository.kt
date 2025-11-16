@@ -50,7 +50,7 @@ interface TransactionRepository {
         notes: String?
     )
 
-    // ...existing methods...
+    // Create a new transaction
     suspend fun createTransaction(
         cashierId: String,
         cashierName: String,
@@ -66,6 +66,7 @@ interface TransactionRepository {
         status: TransactionStatus
     ): String
 
+    // Create a draft transaction
     suspend fun createDraftTransaction(
         cashierId: String,
         cashierName: String,
@@ -77,4 +78,16 @@ interface TransactionRepository {
         total: Double,
         notes: String?
     ): String
+
+    // History: list transactions by date range (inclusive), only completed by default
+    fun getTransactionsByDateRange(startDate: Long, endDate: Long, onlyCompleted: Boolean = true): Flow<List<TransactionEntity>>
+
+    // History: list transactions on an exact day (local)
+    fun getTransactionsByDate(date: Long): Flow<List<TransactionEntity>>
+
+    // All non-deleted transactions
+    fun getAllTransactions(): Flow<List<TransactionEntity>>
+
+    // Soft delete a transaction (admin only in UI)
+    suspend fun softDeleteTransaction(transactionId: String)
 }

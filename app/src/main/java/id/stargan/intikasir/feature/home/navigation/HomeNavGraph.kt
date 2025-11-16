@@ -3,6 +3,7 @@ package id.stargan.intikasir.feature.home.navigation
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +19,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.feature.home.ui.HomeScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
 import id.stargan.intikasir.feature.product.navigation.ProductRoutes
@@ -31,7 +34,13 @@ import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
+import id.stargan.intikasir.feature.history.ui.HistoryScreen
+import id.stargan.intikasir.feature.history.ui.HistoryDetailScreen
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.domain.model.UserRole
+import javax.inject.Inject
 import kotlinx.coroutines.launch
+import androidx.lifecycle.ViewModel
 
 /**
  * Navigation graph untuk Home feature
@@ -91,7 +100,56 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(HomeRoutes.HISTORY) {
-        PlaceholderScreen(title = "Riwayat Transaksi", onBack = { navController.navigateUp() })
+        HistoryScreen(
+            onBack = { navController.navigateUp() },
+            onOpenDetail = { txId -> navController.navigate("${HomeRoutes.HISTORY}/detail/$txId") }
+        )
+    }
+
+    composable("${HomeRoutes.HISTORY}/detail/{transactionId}", arguments = listOf(
+        navArgument("transactionId") { type = NavType.StringType }
+    )) { backStackEntry ->
+        val txId = backStackEntry.arguments?.getString("transactionId")!!
+        val settingsViewModel = hiltViewModel<StoreSettingsViewModel>()
+        val settingsState by settingsViewModel.uiState.collectAsState()
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val scope = rememberCoroutineScope()
+        val posVm = hiltViewModel<id.stargan.intikasir.feature.pos.ui.PosViewModelReactive>()
+        val historyVm = hiltViewModel<id.stargan.intikasir.feature.history.viewmodel.HistoryViewModel>()
+
+        // Get current user role using GetCurrentUserUseCase
+        val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+        val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+
+        HistoryDetailScreen(
+            transactionId = txId,
+            onBack = { navController.navigateUp() },
+            onPrint = { tx ->
+                scope.launch {
+                    posVm.loadTransaction(txId)
+                    val items = posVm.uiState.value.transactionItems
+                    val settings = settingsState.settings
+                    val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
+                    ReceiptPrinter.printOrSave(context, settings, result.pdfUri, result.fileName)
+                }
+            },
+            onShare = { tx ->
+                scope.launch {
+                    posVm.loadTransaction(txId)
+                    val items = posVm.uiState.value.transactionItems
+                    val settings = settingsState.settings
+                    val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
+                    ReceiptPrinter.sharePdf(context, result.pdfUri)
+                }
+            },
+            onDelete = { tx ->
+                scope.launch {
+                    historyVm.deleteTransaction(tx.id)
+                    navController.navigateUp()
+                }
+            },
+            isAdmin = currentUser?.role == UserRole.ADMIN
+        )
     }
 
     composable(HomeRoutes.EXPENSES) {
@@ -288,3 +346,9 @@ fun PlaceholderScreen(
         }
     }
 }
+
+// Simple ViewModel to expose GetCurrentUserUseCase for navigation
+@HiltViewModel
+class HistoryRoleViewModel @Inject constructor(
+    val getCurrentUserUseCase: GetCurrentUserUseCase
+) : ViewModel()
