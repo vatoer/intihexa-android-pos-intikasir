@@ -146,6 +146,12 @@ fun NavGraphBuilder.homeNavGraph(
                 // Dialog is shown by ViewModel, just navigate back after confirm
                 navController.navigateUp()
             },
+            onEdit = { transactionId ->
+                // Navigate to POS screen with transaction ID for editing
+                navController.navigate("pos/$transactionId") {
+                    popUpTo(HomeRoutes.HISTORY) { inclusive = false }
+                }
+            },
             isAdmin = currentUser?.role == UserRole.ADMIN
         )
     }
@@ -278,6 +284,21 @@ fun NavGraphBuilder.homeNavGraph(
                     )
                 }
             },
+            onPrintQueue = {
+                val tx = state.transaction ?: return@ReceiptScreen
+                val settings = settingsState.settings
+                val result = ReceiptPrinter.generateQueueTicketPdf(
+                    context = context,
+                    settings = settings,
+                    transaction = tx
+                )
+                ReceiptPrinter.printOrSave(
+                    context = context,
+                    settings = settings,
+                    pdfUri = result.pdfUri,
+                    jobName = result.fileName
+                )
+            },
             onShare = {
                 val tx = state.transaction ?: return@ReceiptScreen
                 val items = state.transactionItems
@@ -289,6 +310,11 @@ fun NavGraphBuilder.homeNavGraph(
                     items = items
                 )
                 ReceiptPrinter.sharePdf(context, result.pdfUri)
+            },
+            onComplete = {
+                scope.launch {
+                    viewModel.completeTransaction(transactionId)
+                }
             },
             onNewTransaction = {
                 navController.navigate(PosRoutes.POS) {

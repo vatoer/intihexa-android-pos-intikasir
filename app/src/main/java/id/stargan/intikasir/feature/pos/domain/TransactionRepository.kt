@@ -42,13 +42,16 @@ interface TransactionRepository {
         globalDiscount: Double
     )
 
-    // Finalize transaction (mark as COMPLETED)
+    // Finalize transaction (mark as PAID)
     suspend fun finalizeTransaction(
         transactionId: String,
         cashReceived: Double,
         cashChange: Double,
         notes: String?
     )
+
+    // Complete transaction (mark as COMPLETED after receipt confirmation)
+    suspend fun completeTransaction(transactionId: String)
 
     // Create a new transaction
     suspend fun createTransaction(

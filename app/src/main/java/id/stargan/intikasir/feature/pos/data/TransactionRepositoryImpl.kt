@@ -237,14 +237,18 @@ class TransactionRepositoryImpl @Inject constructor(
         cashChange: Double,
         notes: String?
     ) = withContext(Dispatchers.IO) {
-        // Update status to COMPLETED and set cash details
-        transactionDao.finalizeTransaction(transactionId, cashReceived, cashChange, notes, TransactionStatus.COMPLETED)
+        // Update status to PAID and set cash details
+        transactionDao.finalizeTransaction(transactionId, cashReceived, cashChange, notes, TransactionStatus.PAID)
 
         // Decrement stock for all items
         val items = transactionItemDao.getItemsByTransactionId(transactionId)
         items.forEach { item ->
             productDao.decrementStock(item.productId, item.quantity)
         }
+    }
+
+    override suspend fun completeTransaction(transactionId: String) = withContext(Dispatchers.IO) {
+        transactionDao.updateTransactionStatus(transactionId, TransactionStatus.COMPLETED)
     }
 
     override fun getAllTransactions(): Flow<List<TransactionEntity>> =

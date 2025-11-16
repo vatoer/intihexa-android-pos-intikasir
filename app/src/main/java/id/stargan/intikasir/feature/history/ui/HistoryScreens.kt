@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -306,6 +307,7 @@ fun HistoryDetailScreen(
     onPrint: (TransactionEntity) -> Unit,
     onShare: (TransactionEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
+    onEdit: (String) -> Unit,
     isAdmin: Boolean = false,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
@@ -437,6 +439,24 @@ fun HistoryDetailScreen(
                 // Actions - improved with Share button and Admin-only Delete
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Edit button - only for DRAFT and PENDING status
+                        if (tx.status == TransactionStatus.DRAFT || tx.status == TransactionStatus.PENDING) {
+                            Button(
+                                onClick = { onEdit(tx.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text("Edit Transaksi")
+                            }
+                        }
+
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 onPrint(tx)

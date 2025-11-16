@@ -4,16 +4,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -32,13 +31,19 @@ fun ReceiptScreen(
     paymentMethod: String,
     onFinish: () -> Unit,
     onPrint: () -> Unit,
+    onPrintQueue: () -> Unit,
     onShare: () -> Unit,
+    onComplete: () -> Unit,
     onNewTransaction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
     val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
     val currentDate = dateFormat.format(Date())
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    var isCompleted by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -49,6 +54,7 @@ fun ReceiptScreen(
                 )
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { padding ->
         Column(
@@ -136,56 +142,100 @@ fun ReceiptScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action buttons
+            // Action buttons - 2x2 grid with icons
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Row of action buttons
+                // Row 1: Selesai & Cetak
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            isCompleted = true
+                            onComplete()
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "Transaksi telah diselesaikan",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        },
+                        enabled = !isCompleted,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Done, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Selesai")
+                    }
+
+                    Button(
+                        onClick = onPrint,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Print, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Cetak")
+                    }
+                }
+
+                // Row 2: Antrian & Bagikan
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onFinish,
+                        onClick = onPrintQueue,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Selesai")
-                    }
-
-                    OutlinedButton(
-                        onClick = onPrint,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Cetak")
+                        Icon(Icons.Default.Receipt, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Antrian")
                     }
 
                     OutlinedButton(
                         onClick = onShare,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
                         Text("Bagikan")
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // New transaction button
+                // New transaction button - full width
                 Button(
                     onClick = onNewTransaction,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
                 ) {
-                    Text("Buat Transaksi Baru", style = MaterialTheme.typography.titleMedium)
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Buat Transaksi Baru")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Back to home button - text button
+                TextButton(
+                    onClick = onFinish,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Home, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Kembali ke Menu Utama")
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }

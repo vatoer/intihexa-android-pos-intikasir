@@ -341,6 +341,19 @@ class PosViewModelReactive @Inject constructor(
         }
     }
 
+    /**
+     * Complete transaction (mark as COMPLETED)
+     */
+    fun completeTransaction(transactionId: String) {
+        viewModelScope.launch {
+            try {
+                transactionRepository.completeTransaction(transactionId)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Gagal menyelesaikan transaksi: ${e.message}") }
+            }
+        }
+    }
+
     fun onSearchChange(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }

@@ -525,6 +525,87 @@ object ReceiptPrinter {
         return Result(file.toUri(), fileName)
     }
 
+    /**
+     * Generate queue number ticket (thermal)
+     */
+    fun generateQueueTicketPdf(
+        context: Context,
+        settings: StoreSettings?,
+        transaction: TransactionEntity
+    ): Result {
+        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+        val fileName = "Antrian_${transaction.transactionNumber}_${dateFormat.format(Date())}.pdf"
+        val file = File(context.cacheDir, fileName)
+
+        val pageWidth = if (settings?.paperWidthMm?.let { it >= 80 } == true) 576f else 384f
+        val pageHeight = 400f // Short ticket
+        val document = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(pageWidth.toInt(), pageHeight.toInt(), 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val paint = Paint().apply {
+            color = Color.DKGRAY
+            textSize = 28f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+        }
+        val boldPaint = Paint(paint).apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 32f
+        }
+        val titlePaint = Paint(paint).apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 48f
+            textAlign = Paint.Align.CENTER
+        }
+
+        var y = 40f
+        val left = 20f
+        val center = pageWidth / 2
+
+        // Header
+        canvas.drawText("NOMOR ANTRIAN", center, y, titlePaint)
+        y += 60f
+
+        // Queue Number (from transaction number - extract last 4 digits)
+        val queueNumber = transaction.transactionNumber.substringAfterLast('-')
+        titlePaint.textSize = 72f
+        canvas.drawText(queueNumber, center, y, titlePaint)
+        y += 80f
+
+        titlePaint.textSize = 28f
+        titlePaint.textAlign = Paint.Align.LEFT
+
+        // Transaction summary
+        val dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+        canvas.drawText("Transaksi: ${transaction.transactionNumber}", left, y, paint)
+        y += 30f
+        canvas.drawText("Waktu: ${dateFormatter.format(Date(transaction.transactionDate))}", left, y, paint)
+        y += 30f
+
+        val nf = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        canvas.drawText("Total: ${nf.format(transaction.total).replace("Rp", "Rp ")}", left, y, boldPaint)
+        y += 40f
+
+        // Footer
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText("Terima kasih", center, y, paint)
+
+        document.finishPage(page)
+
+        try {
+            document.writeTo(FileOutputStream(file))
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            return Result(uri, fileName)
+        } finally {
+            document.close()
+        }
+    }
+
     fun printOrSave(
         context: Context,
         settings: StoreSettings?,
