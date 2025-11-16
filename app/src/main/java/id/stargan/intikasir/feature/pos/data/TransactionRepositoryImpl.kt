@@ -103,7 +103,12 @@ class TransactionRepositoryImpl @Inject constructor(
         val datePart = dateFormat.format(Date())
         val prefix = "INV-$datePart"
         val lastNumber = transactionDao.getLastTransactionNumber(prefix)
-        val nextSeq = (lastNumber?.substringAfterLast('-')?.toIntOrNull() ?: 0) + 1
+        // Reset nextSeq daily: only count for today (prefix includes date)
+        val nextSeq = if (lastNumber != null && lastNumber.startsWith(prefix)) {
+            (lastNumber.substringAfterLast('-').toIntOrNull() ?: 0) + 1
+        } else {
+            1
+        }
         val transactionNumber = "$prefix-${String.format(Locale.getDefault(), "%04d", nextSeq)}"
 
         val transaction = TransactionEntity(
@@ -147,7 +152,7 @@ class TransactionRepositoryImpl @Inject constructor(
     ): String = withContext(Dispatchers.IO) {
         val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
         val datePart = dateFormat.format(Date())
-        val prefix = "DRAFT-$datePart"
+        val prefix = "TX-$datePart"
         val lastNumber = transactionDao.getLastTransactionNumber(prefix)
         val nextSeq = (lastNumber?.substringAfterLast('-')?.toIntOrNull() ?: 0) + 1
         val transactionNumber = "$prefix-${String.format(Locale.getDefault(), "%04d", nextSeq)}"
