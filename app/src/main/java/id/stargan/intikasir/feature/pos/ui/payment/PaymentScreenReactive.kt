@@ -10,11 +10,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.feature.pos.ui.PosViewModelReactive
 import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
+import id.stargan.intikasir.ui.common.CurrencyVisualTransformation
+import id.stargan.intikasir.ui.common.parseRupiah
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
@@ -162,12 +166,14 @@ fun PaymentScreenReactive(
                 value = globalDiscount,
                 onValueChange = {
                     globalDiscount = it.filter { c -> c.isDigit() }
-                    val amount = it.toDoubleOrNull() ?: 0.0
+                    val amount = parseRupiah(it)
                     viewModel.setGlobalDiscount(amount)
                 },
                 label = { Text("Diskon Global") },
                 prefix = { Text("Rp ") },
                 singleLine = true,
+                visualTransformation = CurrencyVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 maxLines = 1
             )
@@ -248,9 +254,11 @@ fun PaymentScreenReactive(
                     label = { Text("Cash diterima") },
                     prefix = { Text("Rp ") },
                     singleLine = true,
+                    visualTransformation = CurrencyVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
-                        val amount = customCashAmount.toDoubleOrNull() ?: 0.0
+                        val amount = parseRupiah(customCashAmount)
                         if (amount > 0) {
                             if (amount < state.total) {
                                 Text("Uang kurang!", color = MaterialTheme.colorScheme.error)
@@ -259,8 +267,8 @@ fun PaymentScreenReactive(
                             }
                         }
                     },
-                    isError = (customCashAmount.toDoubleOrNull() ?: 0.0) > 0 &&
-                               (customCashAmount.toDoubleOrNull() ?: 0.0) < state.total,
+                    isError = parseRupiah(customCashAmount) > 0 &&
+                               parseRupiah(customCashAmount) < state.total,
                     maxLines = 1
                 )
             }

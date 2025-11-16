@@ -19,10 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -31,13 +27,7 @@ import coil.request.ImageRequest
 import com.yalantis.ucrop.UCrop
 import android.net.Uri
 import java.io.File
-
-// Simple visual transformation for thousand separator display (already formatted string)
-private object NoOpTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        return TransformedText(text, OffsetMapping.Identity)
-    }
-}
+import id.stargan.intikasir.ui.common.CurrencyVisualTransformation
 
 /**
  * Product Form Screen - Add/Edit Product
@@ -322,11 +312,8 @@ fun ProductFormScreen(
                 OutlinedTextField(
                     value = uiState.price,
                     onValueChange = { input ->
-                        val raw = input.filter { it.isDigit() }
-                        val formatted = raw.chunked(3).let { // naive grouping from end
-                            if (raw.isEmpty()) "" else raw.reversed().chunked(3).joinToString(".") { it }.reversed()
-                        }
-                        viewModel.onEvent(ProductFormUiEvent.PriceChanged(formatted, raw))
+                        val digitsOnly = input.filter { it.isDigit() }
+                        viewModel.onEvent(ProductFormUiEvent.PriceChanged(digitsOnly, digitsOnly))
                     },
                     label = { Text("Harga Jual *") },
                     isError = uiState.priceError != null,
@@ -334,7 +321,7 @@ fun ProductFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     prefix = { Text("Rp ") },
                     singleLine = true,
-                    visualTransformation = NoOpTransformation,
+                    visualTransformation = CurrencyVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
@@ -342,15 +329,14 @@ fun ProductFormScreen(
                 OutlinedTextField(
                     value = uiState.cost,
                     onValueChange = { input ->
-                        val raw = input.filter { it.isDigit() }
-                        val formatted = if (raw.isEmpty()) "" else raw.reversed().chunked(3).joinToString(".") { it }.reversed()
-                        viewModel.onEvent(ProductFormUiEvent.CostChanged(formatted, raw))
+                        val digitsOnly = input.filter { it.isDigit() }
+                        viewModel.onEvent(ProductFormUiEvent.CostChanged(digitsOnly, digitsOnly))
                     },
                     label = { Text("Harga Modal") },
                     modifier = Modifier.fillMaxWidth(),
                     prefix = { Text("Rp ") },
                     singleLine = true,
-                    visualTransformation = NoOpTransformation,
+                    visualTransformation = CurrencyVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 

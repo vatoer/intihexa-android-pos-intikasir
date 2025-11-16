@@ -17,6 +17,8 @@ import id.stargan.intikasir.data.local.entity.ExpenseEntity
 import id.stargan.intikasir.data.local.entity.ExpenseCategory
 import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.feature.expense.ui.components.getCategoryLabel
+import id.stargan.intikasir.ui.common.CurrencyVisualTransformation
+import id.stargan.intikasir.ui.common.parseRupiah
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,20 +33,31 @@ fun ExpenseFormScreen(
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var paymentMethod by remember { mutableStateOf(PaymentMethod.CASH) }
+    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var showCategoryMenu by remember { mutableStateOf(false) }
     var showPaymentMenu by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
-    // Show toast and navigate back on success
+    val dateFormat = remember { java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")) }
+
+    // Show toast for errors only, navigate back immediately on success
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.onEvent(ExpenseEvent.DismissToast)
             if (message.contains("berhasil")) {
+                // Success: navigate back immediately without showing toast here
+                viewModel.onEvent(ExpenseEvent.DismissToast)
                 onSaveSuccess()
+            } else {
+                // Error: show toast with longer duration
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Long
+                )
+                viewModel.onEvent(ExpenseEvent.DismissToast)
             }
         }
     }
@@ -103,6 +116,20 @@ fun ExpenseFormScreen(
                 }
             }
 
+            // Date selector
+            OutlinedTextField(
+                value = dateFormat.format(java.util.Date(selectedDate)),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Tanggal") },
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Pilih Tanggal")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // Amount input
             OutlinedTextField(
                 value = amount,
@@ -110,6 +137,7 @@ fun ExpenseFormScreen(
                 label = { Text("Jumlah") },
                 leadingIcon = { Text("Rp") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                visualTransformation = CurrencyVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -171,8 +199,8 @@ fun ExpenseFormScreen(
             // Save button
             Button(
                 onClick = {
-                    val amountValue = amount.toDoubleOrNull()
-                    if (amountValue == null || amountValue <= 0) {
+                    val amountValue = parseRupiah(amount)
+                    if (amountValue <= 0) {
                         scope.launch {
                             snackbarHostState.showSnackbar("Jumlah harus lebih dari 0")
                         }
@@ -186,7 +214,7 @@ fun ExpenseFormScreen(
                     }
 
                     val expense = ExpenseEntity(
-                        date = System.currentTimeMillis(),
+                        date = selectedDate, // Use selected date instead of current time
                         category = category,
                         amount = amountValue,
                         description = description.trim(),
@@ -203,6 +231,44 @@ fun ExpenseFormScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("Simpan Pengeluaran")
             }
+        }
+    }
+
+    // Date picker dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            selectedDate = millis
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Batal")
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        text = "Pilih Tanggal",
+                        modifier = Modifier.padding(start = 24.dp, top = 16.dp)
+                    )
+                }
+            )
         }
     }
 }

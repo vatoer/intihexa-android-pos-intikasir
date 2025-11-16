@@ -47,10 +47,15 @@ fun ExpenseListScreen(
     val totalExpenses = uiState.expenses.size
     val totalAmount = uiState.dailyTotal
 
-    // Show toast
+    // Show toast with short duration for success, default for others
     LaunchedEffect(toastMessage) {
         toastMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+            val duration = if (message.contains("berhasil")) {
+                SnackbarDuration.Short
+            } else {
+                SnackbarDuration.Long
+            }
+            snackbarHostState.showSnackbar(message, duration = duration)
             viewModel.onEvent(ExpenseEvent.DismissToast)
         }
     }
