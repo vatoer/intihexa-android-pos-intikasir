@@ -20,7 +20,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.feature.home.ui.HomeScreen
 import id.stargan.intikasir.feature.product.ui.list.ProductListScreen
@@ -149,7 +149,7 @@ fun NavGraphBuilder.homeNavGraph(
             },
             onEdit = { transactionId ->
                 // Navigate to POS screen with transaction ID for editing
-                navController.navigate("pos/$transactionId") {
+                navController.navigate(PosRoutes.pos(transactionId)) {
                     popUpTo(HomeRoutes.HISTORY) { inclusive = false }
                 }
             },

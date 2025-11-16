@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import id.stargan.intikasir.ui.common.components.TransactionActions
+import id.stargan.intikasir.data.local.entity.TransactionStatus
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,8 +44,6 @@ fun ReceiptScreen(
     val currentDate = dateFormat.format(Date())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-
-    var isCompleted by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -142,70 +142,30 @@ fun ReceiptScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action buttons - 2x2 grid with icons
+            // Action buttons - using reusable TransactionActions component
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Row 1: Selesai & Cetak
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            isCompleted = true
-                            onComplete()
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    message = "Transaksi telah diselesaikan",
-                                    duration = SnackbarDuration.Short
-                                )
-                            }
-                        },
-                        enabled = !isCompleted,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Done, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Selesai")
-                    }
-
-                    Button(
-                        onClick = onPrint,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Print, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Cetak")
-                    }
-                }
-
-                // Row 2: Antrian & Bagikan
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onPrintQueue,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Receipt, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Antrian")
-                    }
-
-                    OutlinedButton(
-                        onClick = onShare,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Bagikan")
-                    }
-                }
+                TransactionActions(
+                    status = TransactionStatus.PAID, // Receipt always shows PAID status
+                    onPrint = onPrint,
+                    onShare = onShare,
+                    onPrintQueue = onPrintQueue,
+                    onComplete = {
+                        onComplete()
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Transaksi telah diselesaikan",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    },
+                    isAdmin = false, // No delete in receipt
+                    onDeleteAdmin = null
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 

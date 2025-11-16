@@ -28,6 +28,7 @@ import id.stargan.intikasir.feature.history.viewmodel.HistoryViewModel
 import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
 import id.stargan.intikasir.feature.history.ui.components.formatDateRange
 import id.stargan.intikasir.feature.history.util.ExportUtil
+import id.stargan.intikasir.ui.common.components.TransactionActions
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -323,8 +324,6 @@ fun HistoryDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var completing by remember { mutableStateOf(false) }
-
     LaunchedEffect(transactionId) { viewModel.onEvent(HistoryEvent.LoadDetail(transactionId)) }
 
     // Show toast message
@@ -442,83 +441,24 @@ fun HistoryDetailScreen(
                     }
                     HorizontalDivider()
                 }
-                // Actions - improved with Share button and Admin-only Delete
+                // Actions - using reusable TransactionActions component
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Edit button - only for DRAFT and PENDING status
-                        if (tx.status == TransactionStatus.DRAFT || tx.status == TransactionStatus.PENDING) {
-                            Button(
-                                onClick = { onEdit(tx.id) },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text("Edit Transaksi")
-                            }
-                        }
-
-                        // If status is PAID -> show Selesai
-                        if (tx.status == TransactionStatus.PAID) {
-                            Button(
-                                onClick = {
-                                    completing = true
-                                    onComplete(tx)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Transaksi ditandai selesai")
-                                    }
-                                },
-                                enabled = !completing,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.Done, contentDescription = null)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Selesai")
-                            }
-                        }
-
-                        // Row: Cetak & Bagikan
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(onClick = { onPrint(tx) }, modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Default.Print, contentDescription = null)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Cetak")
-                            }
-                            Button(onClick = { onShare(tx) }, modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Default.Share, contentDescription = null)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Bagikan")
-                            }
-                        }
-
-                        // Row: Antrian & (Admin) Hapus
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedButton(onClick = {
-                                onPrintQueue(tx)
-                                scope.launch { snackbarHostState.showSnackbar("Tiket antrian dicetak") }
-                            }, modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Default.Receipt, contentDescription = null)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Antrian")
-                            }
-                            if (isAdmin) {
-                                OutlinedButton(
-                                    onClick = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Hapus (Admin)")
-                                }
-                            }
-                        }
-                    }
+                    TransactionActions(
+                        status = tx.status,
+                        onEdit = { onEdit(tx.id) },
+                        onPrint = { onPrint(tx) },
+                        onShare = { onShare(tx) },
+                        onPrintQueue = {
+                            onPrintQueue(tx)
+                            scope.launch { snackbarHostState.showSnackbar("Tiket antrian dicetak") }
+                        },
+                        onComplete = {
+                            onComplete(tx)
+                            scope.launch { snackbarHostState.showSnackbar("Transaksi ditandai selesai") }
+                        },
+                        isAdmin = isAdmin,
+                        onDeleteAdmin = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) }
+                    )
                 }
                 // Bottom spacing
                 item { Spacer(Modifier.height(32.dp)) }
