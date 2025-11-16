@@ -44,6 +44,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import id.stargan.intikasir.feature.profile.ui.ProfileScreen
+import id.stargan.intikasir.feature.users.ui.UsersManagementScreen
 
 /**
  * Navigation graph untuk Home feature
@@ -54,7 +56,7 @@ fun NavGraphBuilder.homeNavGraph(
 ) {
     composable(HomeRoutes.HOME) {
         val context = androidx.compose.ui.platform.LocalContext.current
-        val homeVm = androidx.hilt.navigation.compose.hiltViewModel<id.stargan.intikasir.feature.home.ui.HomeViewModel>()
+        val homeVm = hiltViewModel<id.stargan.intikasir.feature.home.ui.HomeViewModel>()
         val userState = homeVm.currentUser.collectAsState()
 
         // Force logout if no current user (e.g., after reinstall) after a short grace
@@ -373,6 +375,13 @@ fun NavGraphBuilder.homeNavGraph(
         StoreSettingsScreen(
             onNavigateBack = { navController.navigateUp() }
         )
+    }
+
+    composable(HomeRoutes.PROFILE) {
+        ProfileScreen(onNavigateBack = { navController.navigateUp() })
+    }
+    composable(HomeRoutes.USERS) {
+        UsersManagementScreen(onNavigateBack = { navController.navigateUp() })
     }
 }
 

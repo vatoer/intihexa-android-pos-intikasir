@@ -10,7 +10,8 @@ data class User(
     val role: UserRole,
     val isActive: Boolean = true,
     val createdAt: Long,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val username: String = ""
 )
 
 enum class UserRole {
@@ -22,4 +23,3 @@ enum class UserRole {
         CASHIER -> "Kasir"
     }
 }
-

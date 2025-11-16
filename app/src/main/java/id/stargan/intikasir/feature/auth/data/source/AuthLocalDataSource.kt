@@ -80,5 +80,36 @@ class AuthLocalDataSource @Inject constructor(
     suspend fun getUserCount(): Int {
         return userDao.getUserCount()
     }
-}
 
+    /**
+     * Create a new user
+     * @param user UserEntity to create
+     */
+    suspend fun createUser(user: UserEntity) {
+        userDao.insertUser(user)
+    }
+
+    /**
+     * Toggle active status of a user
+     * @param userId User ID
+     * @param active New active status
+     */
+    suspend fun toggleActive(userId: String, active: Boolean) {
+        userDao.updateActiveStatus(userId, active)
+    }
+
+    /**
+     * Soft delete a user
+     * @param userId User ID
+     */
+    suspend fun softDeleteUser(userId: String) {
+        userDao.softDeleteUser(userId)
+    }
+
+    /**
+     * Get user by username
+     * @param username Username untuk authentication
+     * @return UserEntity? user jika ditemukan, null jika tidak
+     */
+    suspend fun getUserByUsername(username: String): UserEntity? = userDao.getUserByUsername(username)
+}

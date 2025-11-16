@@ -20,7 +20,7 @@ data class MenuItem(
  * Daftar menu items untuk home screen
  */
 object MenuItems {
-    val items = listOf(
+    private val items = listOf(
         MenuItem(
             id = "cashier",
             title = "Kasir",
@@ -79,5 +79,27 @@ object MenuItems {
             description = "Pengaturan aplikasi"
         )
     )
-}
 
+    fun items(isAdmin: Boolean): List<MenuItem> {
+        val base = items
+        val extra = mutableListOf(
+            MenuItem(
+                id = "profile",
+                title = "Profil",
+                icon = Icons.Filled.AccountCircle,
+                route = "profil",
+                description = "Ubah nama & PIN"
+            )
+        )
+        if (isAdmin) {
+            extra += MenuItem(
+                id = "users",
+                title = "Pengguna",
+                icon = Icons.Filled.People,
+                route = "pengguna",
+                description = "Kelola pengguna"
+            )
+        }
+        return base + extra
+    }
+}

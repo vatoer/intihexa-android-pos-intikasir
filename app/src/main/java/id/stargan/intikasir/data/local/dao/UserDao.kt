@@ -48,5 +48,10 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedUsers(): List<UserEntity>
-}
 
+    @Query("UPDATE users SET isActive = :active, updatedAt = :timestamp WHERE id = :userId")
+    suspend fun updateActiveStatus(userId: String, active: Boolean, timestamp: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM users WHERE isDeleted = 0 AND lower(username) = lower(:username) LIMIT 1")
+    suspend fun getUserByUsername(username: String): UserEntity?
+}

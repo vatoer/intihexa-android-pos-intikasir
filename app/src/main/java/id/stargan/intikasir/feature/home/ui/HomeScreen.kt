@@ -92,6 +92,7 @@ fun HomeScreen(
                 }
             }
 
+            val menuList = MenuItems.items(isAdmin = currentUser?.role?.name == "ADMIN")
             // Menu Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
@@ -100,7 +101,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(MenuItems.items) { menuItem ->
+                items(menuList) { menuItem ->
                     MenuCard(
                         menuItem = menuItem,
                         onClick = { 

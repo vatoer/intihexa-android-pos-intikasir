@@ -15,7 +15,7 @@ import id.stargan.intikasir.data.local.entity.*
         StoreSettingsEntity::class,
         ExpenseEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class IntiKasirDatabase : RoomDatabase() {
@@ -32,4 +32,3 @@ abstract class IntiKasirDatabase : RoomDatabase() {
         const val DATABASE_NAME = "intikasir_database"
     }
 }
-

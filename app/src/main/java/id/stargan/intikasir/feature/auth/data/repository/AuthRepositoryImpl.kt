@@ -191,6 +191,7 @@ class AuthRepositoryImpl @Inject constructor(
         return listOf(
             id.stargan.intikasir.data.local.entity.UserEntity(
                 id = java.util.UUID.randomUUID().toString(),
+                username = "admin",
                 name = "Admin",
                 pin = hashPin("1234"),
                 role = id.stargan.intikasir.data.local.entity.UserRole.ADMIN,
@@ -200,6 +201,7 @@ class AuthRepositoryImpl @Inject constructor(
             ),
             id.stargan.intikasir.data.local.entity.UserEntity(
                 id = java.util.UUID.randomUUID().toString(),
+                username = "kasir1",
                 name = "Kasir 1",
                 pin = hashPin("5678"),
                 role = id.stargan.intikasir.data.local.entity.UserRole.CASHIER,
@@ -209,5 +211,86 @@ class AuthRepositoryImpl @Inject constructor(
             )
         )
     }
-}
 
+    override suspend fun updateUserProfile(userId: String, newName: String, newHashedPin: String?) {
+        // Fetch current user entity
+        val userEntity = localDataSource.getUserById(userId) ?: throw IllegalArgumentException("User tidak ditemukan")
+        val updated = userEntity.copy(
+            name = newName,
+            pin = newHashedPin ?: userEntity.pin,
+            updatedAt = System.currentTimeMillis()
+        )
+        localDataSource.updateUser(updated)
+        // If current session user changed name, session remains valid (DataStore stores userId only)
+    }
+
+    override fun getAllUsers(): Flow<List<User>> {
+        return localDataSource.getAllUsers().map { it.toDomainModels() }
+    }
+
+    override suspend fun createUser(username: String, name: String, role: UserRole, hashedPin: String): User {
+        val entity = id.stargan.intikasir.data.local.entity.UserEntity(
+            username = username,
+            name = name,
+            pin = hashedPin,
+            role = id.stargan.intikasir.data.local.entity.UserRole.valueOf(role.name)
+        )
+        localDataSource.createUser(entity)
+        return entity.toDomainModel()
+    }
+
+    override suspend fun toggleUserActive(userId: String, active: Boolean) {
+        localDataSource.toggleActive(userId, active)
+    }
+
+    override suspend fun softDeleteUser(userId: String) {
+        localDataSource.softDeleteUser(userId)
+    }
+
+    override suspend fun resetUserPin(userId: String, newHashedPin: String) {
+        val user = localDataSource.getUserById(userId) ?: throw IllegalArgumentException("User tidak ditemukan")
+        localDataSource.updateUser(user.copy(pin = newHashedPin, updatedAt = System.currentTimeMillis()))
+    }
+
+    override suspend fun findUserByUsername(username: String): User? {
+        return localDataSource.getUserByUsername(username)?.toDomainModel()
+    }
+
+    override suspend fun loginWithUser(userId: String, pin: String): Flow<AuthResult> = flow {
+        try {
+            emit(AuthResult.Loading)
+            val validation = validatePinFormat(pin)
+            if (validation.isFailure) {
+                emit(AuthResult.Error(validation.exceptionOrNull()?.message ?: "Invalid PIN", id.stargan.intikasir.feature.auth.domain.model.AuthErrorType.PIN_TOO_SHORT))
+                return@flow
+            }
+            val userEntity = localDataSource.getUserById(userId)
+            if (userEntity == null || userEntity.isDeleted) {
+                emit(AuthResult.Error("User tidak ditemukan", id.stargan.intikasir.feature.auth.domain.model.AuthErrorType.USER_NOT_FOUND))
+                return@flow
+            }
+            if (!userEntity.isActive) {
+                emit(AuthResult.Error("User tidak aktif", id.stargan.intikasir.feature.auth.domain.model.AuthErrorType.USER_INACTIVE))
+                return@flow
+            }
+            if (!verifyPin(pin, userEntity.pin)) {
+                emit(AuthResult.Error("PIN salah", id.stargan.intikasir.feature.auth.domain.model.AuthErrorType.INVALID_PIN))
+                return@flow
+            }
+            preferencesDataSource.saveLoginSession(userId = userEntity.id, loginTime = System.currentTimeMillis())
+            emit(AuthResult.Success(userEntity.toDomainModel()))
+        } catch (e: Exception) {
+            emit(AuthResult.Error("Terjadi kesalahan: ${e.message}", id.stargan.intikasir.feature.auth.domain.model.AuthErrorType.DATABASE_ERROR))
+        }
+    }
+
+    override suspend fun updateUserAccount(userId: String, username: String, name: String) {
+        val userEntity = localDataSource.getUserById(userId) ?: throw IllegalArgumentException("User tidak ditemukan")
+        val updated = userEntity.copy(
+            username = username,
+            name = name,
+            updatedAt = System.currentTimeMillis()
+        )
+        localDataSource.updateUser(updated)
+    }
+}

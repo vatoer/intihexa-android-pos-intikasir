@@ -21,7 +21,8 @@ object UserMapper {
             role = this.role.toDomainRole(),
             isActive = this.isActive,
             createdAt = this.createdAt,
-            updatedAt = this.updatedAt
+            updatedAt = this.updatedAt,
+            username = this.username
         )
     }
 
@@ -31,6 +32,7 @@ object UserMapper {
     fun User.toEntity(): UserEntity {
         return UserEntity(
             id = this.id,
+            username = this.username,
             name = this.name,
             pin = this.pin,
             role = this.role.toEntityRole(),
@@ -67,4 +69,3 @@ object UserMapper {
         }
     }
 }
-

@@ -13,7 +13,12 @@ data class LoginUiState(
     val isSuccess: Boolean = false,
     val loggedInUser: User? = null,
     val showPinError: Boolean = false,
-    val pinErrorMessage: String? = null
+    val pinErrorMessage: String? = null,
+    val step: LoginStep = LoginStep.USERNAME,
+    val username: String = "",
+    val usernameError: String? = null,
+    val selectedUserId: String? = null,
+    val selectedUserName: String? = null
 )
 
 /**
@@ -27,6 +32,8 @@ enum class LoginErrorType {
     UNKNOWN
 }
 
+enum class LoginStep { USERNAME, PIN }
+
 /**
  * UI Events untuk Login Screen
  */
@@ -36,5 +43,7 @@ sealed class LoginUiEvent {
     data object ClearPin : LoginUiEvent()
     data object DismissError : LoginUiEvent()
     data object NavigatedToHome : LoginUiEvent()
+    data class UsernameChanged(val username: String) : LoginUiEvent()
+    data object NextFromUsername : LoginUiEvent()
+    data object BackToUsername : LoginUiEvent()
 }
-

@@ -106,51 +106,71 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Masukkan PIN Anda",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (uiState.step == LoginStep.USERNAME) {
+                    Text(
+                        text = "Masukkan Username",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    OutlinedTextField(
+                        value = uiState.username,
+                        onValueChange = { viewModel.onEvent(LoginUiEvent.UsernameChanged(it)) },
+                        label = { Text("Username") },
+                        singleLine = true,
+                        isError = uiState.usernameError != null,
+                        supportingText = { uiState.usernameError?.let { Text(it, color = MaterialTheme.colorScheme.error) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { viewModel.onEvent(LoginUiEvent.NextFromUsername) },
+                        enabled = !uiState.isLoading && uiState.username.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 32.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) { Text("Lanjut") }
+                } else {
+                    Text(
+                        text = "${uiState.selectedUserName ?: ""}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Masukkan PIN",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(48.dp))
 
-                // PIN Input Field with Number Pad
-                PinInputField(
-                    pin = uiState.pin,
-                    onPinChanged = { viewModel.onEvent(LoginUiEvent.PinChanged(it)) },
-                    onSubmit = { viewModel.onEvent(LoginUiEvent.LoginClicked) },
-                    onClear = { viewModel.onEvent(LoginUiEvent.ClearPin) },
-                    enabled = !uiState.isLoading,
-                    isError = uiState.showPinError || uiState.error != null,
-                    errorMessage = uiState.pinErrorMessage,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    // PIN Input Field with Number Pad
+                    PinInputField(
+                        pin = uiState.pin,
+                        onPinChanged = { viewModel.onEvent(LoginUiEvent.PinChanged(it)) },
+                        onSubmit = { viewModel.onEvent(LoginUiEvent.LoginClicked) },
+                        onClear = { viewModel.onEvent(LoginUiEvent.ClearPin) },
+                        enabled = !uiState.isLoading,
+                        isError = uiState.showPinError || uiState.error != null,
+                        errorMessage = uiState.pinErrorMessage,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Login Button
-                Button(
-                    onClick = { viewModel.onEvent(LoginUiEvent.LoginClicked) },
-                    enabled = !uiState.isLoading && uiState.pin.length >= 4,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 32.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = "Masuk",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(
+                            onClick = { viewModel.onEvent(LoginUiEvent.BackToUsername) },
+                            enabled = !uiState.isLoading,
+                        ) { Text("Kembali") }
+                        Button(
+                            onClick = { viewModel.onEvent(LoginUiEvent.LoginClicked) },
+                            enabled = !uiState.isLoading && uiState.pin.length >= 4,
+                            modifier = Modifier.weight(1f).height(56.dp),
+                            shape = MaterialTheme.shapes.medium
+                        ) { if (uiState.isLoading) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp) else Text("Masuk") }
                     }
                 }
 
@@ -196,4 +216,3 @@ fun LoginScreen(
         }
     }
 }
-

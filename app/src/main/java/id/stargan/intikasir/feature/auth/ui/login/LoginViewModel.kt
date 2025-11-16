@@ -21,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
-    private val validatePinUseCase: ValidatePinUseCase
+    private val validatePinUseCase: ValidatePinUseCase,
+    private val authRepository: id.stargan.intikasir.feature.auth.domain.repository.AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -32,22 +33,14 @@ class LoginViewModel @Inject constructor(
      */
     fun onEvent(event: LoginUiEvent) {
         when (event) {
-            is LoginUiEvent.PinChanged -> {
-                handlePinChanged(event.pin)
-            }
-            is LoginUiEvent.LoginClicked -> {
-                handleLogin()
-            }
-            is LoginUiEvent.ClearPin -> {
-                clearPin()
-            }
-            is LoginUiEvent.DismissError -> {
-                dismissError()
-            }
-            is LoginUiEvent.NavigatedToHome -> {
-                // Reset state after navigation
-                _uiState.update { it.copy(isSuccess = false) }
-            }
+            is LoginUiEvent.UsernameChanged -> _uiState.update { it.copy(username = event.username.trim(), usernameError = null) }
+            LoginUiEvent.NextFromUsername -> handleNextFromUsername()
+            LoginUiEvent.BackToUsername -> _uiState.update { it.copy(step = LoginStep.USERNAME, pin = "", showPinError = false, pinErrorMessage = null) }
+            is LoginUiEvent.PinChanged -> handlePinChanged(event.pin)
+            LoginUiEvent.LoginClicked -> handleLoginWithSelectedUser()
+            LoginUiEvent.ClearPin -> clearPin()
+            LoginUiEvent.DismissError -> dismissError()
+            LoginUiEvent.NavigatedToHome -> _uiState.update { it.copy(isSuccess = false) }
         }
     }
 
@@ -76,61 +69,51 @@ class LoginViewModel @Inject constructor(
     /**
      * Handle login action
      */
-    private fun handleLogin() {
-        val currentPin = _uiState.value.pin
-
+    private fun handleLoginWithSelectedUser() {
+        val state = _uiState.value
+        val userId = state.selectedUserId
+        if (state.step != LoginStep.PIN || userId == null) {
+            _uiState.update { it.copy(error = "Silakan pilih username terlebih dahulu") }
+            return
+        }
+        val currentPin = state.pin
         // Validate PIN before login
         val validation = validatePinUseCase(currentPin)
         if (validation.isFailure) {
-            _uiState.update { currentState ->
-                currentState.copy(
-                    showPinError = true,
-                    pinErrorMessage = validation.exceptionOrNull()?.message
-                )
-            }
+            _uiState.update { it.copy(showPinError = true, pinErrorMessage = validation.exceptionOrNull()?.message) }
             return
         }
 
         // Proceed with login
         viewModelScope.launch {
-            loginUseCase(currentPin).collect { result ->
+            authRepository.loginWithUser(userId, currentPin).collect { result ->
                 when (result) {
-                    is AuthResult.Loading -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                isLoading = true,
-                                error = null,
-                                errorType = null
-                            )
-                        }
-                    }
-                    is AuthResult.Success -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                isLoading = false,
-                                isSuccess = true,
-                                loggedInUser = result.user,
-                                error = null,
-                                errorType = null,
-                                pin = "" // Clear PIN after success
-                            )
-                        }
-                    }
-                    is AuthResult.Error -> {
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                isLoading = false,
-                                error = result.message,
-                                errorType = mapAuthErrorToUiError(result.errorType),
-                                isSuccess = false
-                            )
-                        }
-                    }
-                    is AuthResult.Idle -> {
-                        // Do nothing
-                    }
+                    is AuthResult.Loading -> _uiState.update { it.copy(isLoading = true, error = null, errorType = null) }
+                    is AuthResult.Success -> _uiState.update { it.copy(isLoading = false, isSuccess = true, loggedInUser = result.user, error = null, errorType = null, pin = "") }
+                    is AuthResult.Error -> _uiState.update { it.copy(isLoading = false, error = result.message, errorType = mapAuthErrorToUiError(result.errorType), isSuccess = false) }
+                    is AuthResult.Idle -> {}
                 }
             }
+        }
+    }
+
+    private fun handleNextFromUsername() {
+        val uname = _uiState.value.username
+        if (uname.isBlank()) {
+            _uiState.update { it.copy(usernameError = "Username tidak boleh kosong") }
+            return
+        }
+        viewModelScope.launch {
+            val user = authRepository.findUserByUsername(uname)
+            if (user == null) {
+                _uiState.update { it.copy(usernameError = "Username tidak ditemukan") }
+                return@launch
+            }
+            if (!user.isActive) {
+                _uiState.update { it.copy(usernameError = "Akun nonaktif. Hubungi admin.") }
+                return@launch
+            }
+            _uiState.update { it.copy(step = LoginStep.PIN, selectedUserId = user.id, selectedUserName = user.name, error = null, errorType = null, pin = "") }
         }
     }
 
@@ -172,4 +155,3 @@ class LoginViewModel @Inject constructor(
         }
     }
 }
-

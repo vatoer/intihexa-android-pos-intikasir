@@ -82,5 +82,38 @@ interface AuthRepository {
      * @return Boolean true jika sudah ada user
      */
     suspend fun hasUsers(): Boolean
-}
 
+    /**
+     * Update user profile (name and optionally PIN)
+     */
+    suspend fun updateUserProfile(userId: String, newName: String, newHashedPin: String? = null)
+
+    /** Create new user */
+    suspend fun createUser(username: String, name: String, role: UserRole, hashedPin: String): User
+    /** Toggle active status */
+    suspend fun toggleUserActive(userId: String, active: Boolean)
+    /** Soft delete user */
+    suspend fun softDeleteUser(userId: String)
+    /** Reset pin */
+    suspend fun resetUserPin(userId: String, newHashedPin: String)
+    /** Get all users */
+    fun getAllUsers(): Flow<List<User>>
+
+    /**
+     * Find user by username
+     * @param username Username yang akan dicari
+     * @return User? user yang ditemukan atau null
+     */
+    suspend fun findUserByUsername(username: String): User?
+
+    /**
+     * Login dengan menggunakan userId dan PIN
+     * @param userId ID user yang akan digunakan untuk login
+     * @param pin PIN yang dimasukkan user
+     * @return Flow<AuthResult> untuk observe hasil login
+     */
+    suspend fun loginWithUser(userId: String, pin: String): Flow<AuthResult>
+
+    /** Update username and name */
+    suspend fun updateUserAccount(userId: String, username: String, name: String)
+}

@@ -45,7 +45,7 @@ fun ProductSortDialog(
                     onClick = { selectedSort = ProductSortBy.NAME_DESC }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 SortOption(
                     text = "Harga Termurah",
@@ -59,7 +59,7 @@ fun ProductSortDialog(
                     onClick = { selectedSort = ProductSortBy.PRICE_DESC }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 SortOption(
                     text = "Stok Terendah",
@@ -73,7 +73,7 @@ fun ProductSortDialog(
                     onClick = { selectedSort = ProductSortBy.STOCK_DESC }
                 )
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 SortOption(
                     text = "Terbaru",

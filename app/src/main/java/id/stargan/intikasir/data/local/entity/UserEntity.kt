@@ -12,6 +12,7 @@ data class UserEntity(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
 
+    val username: String = "",
     val name: String,
     val pin: String, // Hashed PIN 4 digit
     val role: UserRole,
@@ -28,4 +29,3 @@ enum class UserRole {
     ADMIN,
     CASHIER
 }
-
