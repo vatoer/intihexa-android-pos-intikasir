@@ -2,6 +2,29 @@
 
 **Inti Kasir** adalah aplikasi Point of Sale (POS) Android native yang dirancang khusus untuk Usaha Kecil Menengah (UKM) di Indonesia. Aplikasi ini menawarkan sistem kasir yang andal, modern, dan mudah digunakan dengan fitur offline-first.
 
+---
+
+## 🎨 Design System - "Fresh Commerce"
+
+Aplikasi menggunakan design system profesional yang dioptimalkan untuk penggunaan jangka panjang:
+
+- **🎯 Primary (Teal)**: #00897B - Professional, Fresh, Trustworthy
+- **🔥 Secondary (Orange)**: #FF6F00 - Energetic, Urgency, Appetite  
+- **💎 Tertiary (Purple)**: #5E35B1 - Premium, Analytics
+- **✅ Success (Green)**: #388E3C - Completed transactions
+- **⚠️ Warning (Amber)**: #FF8F00 - Low stock alerts
+- **❌ Error (Red)**: #D32F2F - Form errors
+
+**Karakteristik**:
+- ✅ WCAG AAA compliant (accessibility)
+- ✅ Eye-friendly untuk penggunaan 8+ jam
+- ✅ Material 3 Design Language
+- ✅ Dark mode support
+
+📖 **Color Guide**: `/docs/ai-color-guidance.md` & `/docs/COLOR_QUICK_GUIDE.md`
+
+---
+
 ## 🎯 Fitur Utama
 
 ### ✅ Sudah Diimplementasikan
