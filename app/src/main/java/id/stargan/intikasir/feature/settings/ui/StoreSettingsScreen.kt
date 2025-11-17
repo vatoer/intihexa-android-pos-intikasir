@@ -4,7 +4,6 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,8 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.ImeAction
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
@@ -38,6 +35,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
+import id.stargan.intikasir.util.BluetoothPermissionHelper
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.feature.settings.ui.components.ReceiptSettingsSection
 import id.stargan.intikasir.feature.settings.ui.components.StoreInfoSection
@@ -124,6 +122,17 @@ fun StoreSettingsScreen(
             onCaptureLogo()
         } else {
             scope.launch { snackbarHostState.showSnackbar("Izin kamera ditolak") }
+        }
+    }
+
+    // Bluetooth permissions (CONNECT + SCAN) - request multiple
+    val bluetoothPermissions = remember { BluetoothPermissionHelper.getRequiredPermissions() }
+    var hasBtPermissions by remember { mutableStateOf(BluetoothPermissionHelper.hasBluetoothPermissions(context)) }
+    val requestBtPermissionsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        hasBtPermissions = if (bluetoothPermissions.isEmpty()) {
+            true
+        } else {
+            bluetoothPermissions.all { perm -> results[perm] == true }
         }
     }
 
@@ -529,19 +538,16 @@ fun StoreSettingsScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     val adapter = remember { BluetoothAdapter.getDefaultAdapter() }
-                    val btPermission = Manifest.permission.BLUETOOTH_CONNECT
-                    val sdk31Plus = remember { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S }
-                    var hasBtPermission by remember {
-                        mutableStateOf(
-                            if (sdk31Plus) ContextCompat.checkSelfPermission(context, btPermission) == PackageManager.PERMISSION_GRANTED else true
-                        )
-                    }
-                    val requestBtPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                        hasBtPermission = granted
-                    }
-                    val bonded = remember(hasBtPermission) { if (hasBtPermission) adapter?.bondedDevices?.toList().orEmpty() else emptyList() }
+                    var bonded by remember { mutableStateOf<List<android.bluetooth.BluetoothDevice>>(emptyList()) }
                     var selectedAddress by remember(uiState.settings) { mutableStateOf(uiState.settings?.printerAddress) }
                     var selectedName by remember(uiState.settings) { mutableStateOf(uiState.settings?.printerName) }
+
+                    // refresh bonded list when permissions change or adapter changes
+                    LaunchedEffect(adapter, hasBtPermissions) {
+                        bonded = if (adapter != null && hasBtPermissions) {
+                            try { adapter.bondedDevices.toList() } catch (_: Exception) { emptyList() }
+                        } else emptyList()
+                    }
 
                     Column(
                         modifier = Modifier
@@ -568,7 +574,9 @@ fun StoreSettingsScreen(
                                 when {
                                     adapter == null -> scope.launch { snackbarHostState.showSnackbar("Bluetooth tidak tersedia") }
                                     !adapter.isEnabled -> scope.launch { snackbarHostState.showSnackbar("Nyalakan Bluetooth terlebih dahulu") }
-                                    sdk31Plus && !hasBtPermission -> scope.launch { requestBtPermissionLauncher.launch(btPermission) }
+                                    !hasBtPermissions && bluetoothPermissions.isNotEmpty() -> {
+                                        requestBtPermissionsLauncher.launch(bluetoothPermissions)
+                                    }
                                     activeAddr.isNullOrBlank() -> scope.launch { snackbarHostState.showSnackbar("Pilih printer terlebih dahulu") }
                                     else -> {
                                         scope.launch {
@@ -596,8 +604,21 @@ fun StoreSettingsScreen(
                                                 cashReceived = 1000.0,
                                                 cashChange = 0.0
                                             )
-                                            ESCPosPrinter.printReceipt(context, effective, tx, items)
-                                            snackbarHostState.showSnackbar("Perintah cetak dikirim")
+                                            // call print with permission already ensured and handle result
+                                            when (val result = ESCPosPrinter.printReceipt(context, effective, tx, items)) {
+                                                is ESCPosPrinter.PrintResult.Success -> {
+                                                    snackbarHostState.showSnackbar(
+                                                        message = "Perintah cetak berhasil dikirim",
+                                                        duration = SnackbarDuration.Short
+                                                    )
+                                                }
+                                                is ESCPosPrinter.PrintResult.Error -> {
+                                                    snackbarHostState.showSnackbar(
+                                                        message = "Gagal mencetak: ${result.message}",
+                                                        duration = SnackbarDuration.Long
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -613,9 +634,9 @@ fun StoreSettingsScreen(
                             Text("Bluetooth tidak tersedia di perangkat ini", color = MaterialTheme.colorScheme.error)
                         } else if (!adapter.isEnabled) {
                             Text("Bluetooth nonaktif. Aktifkan Bluetooth untuk memilih printer.", color = MaterialTheme.colorScheme.error)
-                        } else if (!hasBtPermission && sdk31Plus) {
-                            Text("Izin BLUETOOTH_CONNECT diperlukan untuk melihat perangkat.")
-                            OutlinedButton(onClick = { requestBtPermissionLauncher.launch(btPermission) }) {
+                        } else if (!hasBtPermissions && bluetoothPermissions.isNotEmpty()) {
+                            Text("Izin BLUETOOTH_CONNECT/SCAN diperlukan untuk melihat perangkat.")
+                            OutlinedButton(onClick = { requestBtPermissionsLauncher.launch(bluetoothPermissions) }) {
                                 Icon(Icons.Default.Bluetooth, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Izinkan Bluetooth")

@@ -6,10 +6,12 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
+import id.stargan.intikasir.util.BluetoothPermissionHelper
 import java.io.OutputStream
 import java.nio.charset.Charset
 import java.text.NumberFormat
@@ -21,33 +23,88 @@ import java.util.UUID
  * NOTE: This is a basic stub focusing on text output.
  */
 object ESCPosPrinter {
+    private const val TAG = "ESCPosPrinter"
     private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+    sealed class PrintResult {
+        object Success : PrintResult()
+        data class Error(val message: String) : PrintResult()
+    }
 
     fun printReceipt(
         context: Context,
         settings: StoreSettings,
         transaction: TransactionEntity,
         items: List<TransactionItemEntity>
-    ) {
-        val mac = settings.printerAddress ?: return
-        val sdk31Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-        if (sdk31Plus) {
-            val permissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-            if (!permissionGranted) return // Permission not granted; silently abort
-        }
-        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
-        val device: BluetoothDevice = adapter.getRemoteDevice(mac)
-        val socket: BluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-        adapter.cancelDiscovery()
+    ): PrintResult {
         try {
-            socket.connect()
-            socket.outputStream.use { out ->
-                writeReceipt(out, settings, transaction, items)
+            val mac = settings.printerAddress
+            if (mac.isNullOrBlank()) {
+                Log.w(TAG, "printReceipt: No printer address configured")
+                return PrintResult.Error("Printer belum dikonfigurasi")
             }
-        } catch (_: Exception) {
-            // swallow for now; could log
-        } finally {
-            try { socket.close() } catch (_: Exception) {}
+
+            if (!BluetoothPermissionHelper.hasBluetoothPermissions(context)) {
+                Log.w(TAG, "printReceipt: Bluetooth permissions not granted")
+                return PrintResult.Error("Izin Bluetooth diperlukan untuk mencetak")
+            }
+
+            val adapter = BluetoothAdapter.getDefaultAdapter()
+            if (adapter == null) {
+                Log.e(TAG, "printReceipt: BluetoothAdapter is null")
+                return PrintResult.Error("Bluetooth tidak tersedia")
+            }
+
+            if (!adapter.isEnabled) {
+                Log.w(TAG, "printReceipt: Bluetooth is disabled")
+                return PrintResult.Error("Bluetooth tidak aktif")
+            }
+
+            val device: BluetoothDevice = try {
+                adapter.getRemoteDevice(mac)
+            } catch (e: Exception) {
+                Log.e(TAG, "printReceipt: Failed to get remote device", e)
+                return PrintResult.Error("Printer tidak ditemukan: ${e.message}")
+            }
+
+            val socket: BluetoothSocket = try {
+                device.createRfcommSocketToServiceRecord(SPP_UUID)
+            } catch (e: Exception) {
+                Log.e(TAG, "printReceipt: Failed to create socket", e)
+                return PrintResult.Error("Gagal membuat koneksi: ${e.message}")
+            }
+
+            // cancelDiscovery may require BLUETOOTH_SCAN on newer SDKs; check before calling
+            if (BluetoothPermissionHelper.hasBluetoothScanPermission(context)) {
+                try {
+                    adapter.cancelDiscovery()
+                } catch (e: Exception) {
+                    Log.w(TAG, "printReceipt: Failed to cancel discovery", e)
+                }
+            }
+
+            try {
+                Log.d(TAG, "printReceipt: Connecting to printer...")
+                socket.connect()
+                Log.d(TAG, "printReceipt: Connected, sending data...")
+                socket.outputStream.use { out ->
+                    writeReceipt(out, settings, transaction, items)
+                }
+                Log.i(TAG, "printReceipt: Print successful")
+                return PrintResult.Success
+            } catch (e: Exception) {
+                Log.e(TAG, "printReceipt: Failed to print", e)
+                return PrintResult.Error("Gagal mencetak: ${e.message}")
+            } finally {
+                try {
+                    socket.close()
+                } catch (e: Exception) {
+                    Log.w(TAG, "printReceipt: Failed to close socket", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "printReceipt: Unexpected error", e)
+            return PrintResult.Error("Kesalahan tidak terduga: ${e.message}")
         }
     }
 
@@ -84,11 +141,35 @@ object ESCPosPrinter {
         // Items
         alignLeft()
         items.forEach { itx ->
+            // Product name
             text(itx.productName.take(cpl))
-            val qty = "${itx.quantity} x ${nf.format(itx.unitPrice).replace("Rp", "Rp ")}"
-            val sub = nf.format(itx.subtotal).replace("Rp", "Rp ")
-            val pad = (cpl - qty.length - sub.length).coerceAtLeast(1)
-            text(qty + " ".repeat(pad) + sub)
+
+            // If item has discount, show original price and discounted price per unit
+            if (itx.discount > 0) {
+                val originalPrice = itx.productPrice
+                val discountPerUnit = itx.discount / itx.quantity
+                val discountedPricePerUnit = originalPrice - discountPerUnit
+
+                // Original price (with @ prefix to indicate strikethrough)
+                val origPriceStr = "@${nf.format(originalPrice).replace("Rp", "Rp ")}/pcs"
+                text("  $origPriceStr")
+
+                // Quantity x discounted price per unit = subtotal
+                val qty = "${itx.quantity} x ${nf.format(discountedPricePerUnit).replace("Rp", "Rp ")}"
+                val sub = nf.format(itx.subtotal).replace("Rp", "Rp ")
+                val pad = (cpl - qty.length - sub.length).coerceAtLeast(1)
+                text(qty + " ".repeat(pad) + sub)
+
+                // Total discount for all units
+                val discountStr = "  Diskon: -${nf.format(itx.discount).replace("Rp", "Rp ")}"
+                text(discountStr)
+            } else {
+                // No discount - simple format
+                val qty = "${itx.quantity} x ${nf.format(itx.unitPrice).replace("Rp", "Rp ")}"
+                val sub = nf.format(itx.subtotal).replace("Rp", "Rp ")
+                val pad = (cpl - qty.length - sub.length).coerceAtLeast(1)
+                text(qty + " ".repeat(pad) + sub)
+            }
         }
         divider()
 
@@ -121,25 +202,74 @@ object ESCPosPrinter {
         context: Context,
         settings: StoreSettings,
         transaction: TransactionEntity
-    ) {
-        val mac = settings.printerAddress ?: return
-        val sdk31Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-        if (sdk31Plus) {
-            val permissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-            if (!permissionGranted) return
-        }
-        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
-        val device: BluetoothDevice = adapter.getRemoteDevice(mac)
-        val socket: BluetoothSocket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-        adapter.cancelDiscovery()
+    ): PrintResult {
         try {
-            socket.connect()
-            socket.outputStream.use { out ->
-                writeQueueTicket(out, settings, transaction)
+            val mac = settings.printerAddress
+            if (mac.isNullOrBlank()) {
+                Log.w(TAG, "printQueueTicket: No printer address configured")
+                return PrintResult.Error("Printer belum dikonfigurasi")
             }
-        } catch (_: Exception) {
-        } finally {
-            try { socket.close() } catch (_: Exception) {}
+
+            if (!BluetoothPermissionHelper.hasBluetoothPermissions(context)) {
+                Log.w(TAG, "printQueueTicket: Bluetooth permissions not granted")
+                return PrintResult.Error("Izin Bluetooth diperlukan untuk mencetak")
+            }
+
+            val adapter = BluetoothAdapter.getDefaultAdapter()
+            if (adapter == null) {
+                Log.e(TAG, "printQueueTicket: BluetoothAdapter is null")
+                return PrintResult.Error("Bluetooth tidak tersedia")
+            }
+
+            if (!adapter.isEnabled) {
+                Log.w(TAG, "printQueueTicket: Bluetooth is disabled")
+                return PrintResult.Error("Bluetooth tidak aktif")
+            }
+
+            val device: BluetoothDevice = try {
+                adapter.getRemoteDevice(mac)
+            } catch (e: Exception) {
+                Log.e(TAG, "printQueueTicket: Failed to get remote device", e)
+                return PrintResult.Error("Printer tidak ditemukan: ${e.message}")
+            }
+
+            val socket: BluetoothSocket = try {
+                device.createRfcommSocketToServiceRecord(SPP_UUID)
+            } catch (e: Exception) {
+                Log.e(TAG, "printQueueTicket: Failed to create socket", e)
+                return PrintResult.Error("Gagal membuat koneksi: ${e.message}")
+            }
+
+            if (BluetoothPermissionHelper.hasBluetoothScanPermission(context)) {
+                try {
+                    adapter.cancelDiscovery()
+                } catch (e: Exception) {
+                    Log.w(TAG, "printQueueTicket: Failed to cancel discovery", e)
+                }
+            }
+
+            try {
+                Log.d(TAG, "printQueueTicket: Connecting to printer...")
+                socket.connect()
+                Log.d(TAG, "printQueueTicket: Connected, sending data...")
+                socket.outputStream.use { out ->
+                    writeQueueTicket(out, settings, transaction)
+                }
+                Log.i(TAG, "printQueueTicket: Print successful")
+                return PrintResult.Success
+            } catch (e: Exception) {
+                Log.e(TAG, "printQueueTicket: Failed to print", e)
+                return PrintResult.Error("Gagal mencetak antrian: ${e.message}")
+            } finally {
+                try {
+                    socket.close()
+                } catch (e: Exception) {
+                    Log.w(TAG, "printQueueTicket: Failed to close socket", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "printQueueTicket: Unexpected error", e)
+            return PrintResult.Error("Kesalahan tidak terduga: ${e.message}")
         }
     }
 

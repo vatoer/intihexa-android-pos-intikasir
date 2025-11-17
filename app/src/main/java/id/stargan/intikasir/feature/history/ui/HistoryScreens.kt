@@ -23,6 +23,7 @@ import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
 import id.stargan.intikasir.feature.history.ui.components.formatDateRange
 import id.stargan.intikasir.feature.history.util.ExportUtil
 import id.stargan.intikasir.ui.common.components.TransactionActions
+import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -405,6 +406,7 @@ fun HistoryDetailScreen(
                         ItemDetailRow(
                             name = item.productName,
                             quantity = item.quantity,
+                            productPrice = item.productPrice,
                             unitPrice = item.unitPrice,
                             discount = item.discount,
                             subtotal = item.subtotal,
@@ -415,24 +417,76 @@ fun HistoryDetailScreen(
                 } else {
                     item { Text("Tidak ada item", style = MaterialTheme.typography.bodyMedium) }
                 }
-                // Totals section
+
+                // Order Summary using OrderSummaryCard component
                 item {
-                    val subtotalStr = currency.format(tx.subtotal).replace("Rp", "Rp ")
-                    val taxStr = currency.format(tx.tax).replace("Rp", "Rp ")
-                    val discountStr = currency.format(tx.discount).replace("Rp", "Rp ")
-                    val totalStr = currency.format(tx.total).replace("Rp", "Rp ")
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Subtotal: $subtotalStr")
-                        if (tx.tax > 0) Text("PPN: $taxStr")
-                        if (tx.discount > 0) Text("Diskon: -$discountStr")
-                        Text("Total: $totalStr", fontWeight = FontWeight.Bold)
-                        if (tx.cashReceived > 0) {
-                            val receivedStr = currency.format(tx.cashReceived).replace("Rp", "Rp ")
-                            val changeStr = currency.format(tx.cashChange).replace("Rp", "Rp ")
-                            Text("Dibayar: $receivedStr")
-                            Text("Kembalian: $changeStr")
+                    // Calculate values
+                    val grossSubtotal = uiState.items.sumOf { it.unitPrice * it.quantity }
+                    val itemDiscount = uiState.items.sumOf { it.discount }
+                    val netSubtotal = tx.subtotal
+                    val taxRate = if (netSubtotal > 0 && tx.tax > 0) tx.tax / netSubtotal else 0.0
+                    val globalDiscount = tx.discount
+
+                    OrderSummaryCard(
+                        grossSubtotal = grossSubtotal,
+                        itemDiscount = itemDiscount,
+                        netSubtotal = netSubtotal,
+                        taxRate = taxRate,
+                        taxAmount = tx.tax,
+                        globalDiscount = globalDiscount,
+                        total = tx.total
+                    )
+
+                    // Cash payment details (if applicable)
+                    if (tx.cashReceived > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    "Detail Pembayaran Tunai",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                HorizontalDivider()
+
+                                val receivedStr = currency.format(tx.cashReceived).replace("Rp", "Rp ")
+                                val changeStr = currency.format(tx.cashChange).replace("Rp", "Rp ")
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Tunai Diterima", style = MaterialTheme.typography.bodySmall)
+                                    Text(receivedStr, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "Kembalian",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        changeStr,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
+
                     HorizontalDivider()
                 }
                 // Actions - using reusable TransactionActions component
@@ -465,6 +519,7 @@ fun HistoryDetailScreen(
 private fun ItemDetailRow(
     name: String,
     quantity: Int,
+    productPrice: Double,
     unitPrice: Double,
     discount: Double,
     subtotal: Double,
@@ -473,12 +528,41 @@ private fun ItemDetailRow(
     ElevatedCard {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            val unitStr = currency.format(unitPrice).replace("Rp", "Rp ")
-            val subStr = currency.format(subtotal).replace("Rp", "Rp ")
-            Text("$quantity x $unitStr = $subStr", style = MaterialTheme.typography.bodySmall)
+
             if (discount > 0) {
+                // Show original price
+                val origPriceStr = currency.format(productPrice).replace("Rp", "Rp ")
+                Text(
+                    "@$origPriceStr/pcs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Calculate discounted price per unit
+                val discountPerUnit = discount / quantity
+                val discountedPricePerUnit = productPrice - discountPerUnit
+                val discountedStr = currency.format(discountedPricePerUnit).replace("Rp", "Rp ")
+                val subStr = currency.format(subtotal).replace("Rp", "Rp ")
+
+                // Show quantity x discounted price = subtotal
+                Text(
+                    "$quantity x $discountedStr = $subStr",
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                // Show total discount
                 val discountStr = currency.format(discount).replace("Rp", "Rp ")
-                Text("Diskon item: -$discountStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                val discountPerUnitStr = currency.format(discountPerUnit).replace("Rp", "Rp ")
+                Text(
+                    "Diskon: $discountPerUnitStr/pcs (Total: -$discountStr)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                // No discount - simple format
+                val unitStr = currency.format(unitPrice).replace("Rp", "Rp ")
+                val subStr = currency.format(subtotal).replace("Rp", "Rp ")
+                Text("$quantity x $unitStr = $subStr", style = MaterialTheme.typography.bodySmall)
             }
         }
     }

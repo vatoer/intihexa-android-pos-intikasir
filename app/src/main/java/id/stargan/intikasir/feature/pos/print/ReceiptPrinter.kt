@@ -2,6 +2,7 @@ package id.stargan.intikasir.feature.pos.print
 
 import android.content.ContentValues
 import android.content.Context
+import android.widget.Toast
 import android.graphics.*
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
@@ -162,21 +163,45 @@ object ReceiptPrinter {
         items.forEach { item ->
             val name = item.productName
             val qty = "${item.quantity}"
-            val price = nf.format(item.unitPrice).replace("Rp", "Rp ")
             val sub = nf.format(item.subtotal).replace("Rp", "Rp ")
 
-            // Name
-            canvas.drawText(name, xPadding, y, normalPaint)
-            canvas.drawText(qty, qtyColumnX, y, normalPaint)
-            canvas.drawText(price, priceColumnX, y, normalPaint)
-            canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
-            y += 18f
-
-            // Discount if any
+            // If item has discount, show original price with strikethrough
             if (item.discount > 0) {
+                val originalPrice = item.productPrice
+                val discountedPrice = item.unitPrice
+
+                // Name
+                canvas.drawText(name, xPadding, y, normalPaint)
+                canvas.drawText(qty, qtyColumnX, y, normalPaint)
+
+                // Original price with strikethrough
+                val origPriceStr = nf.format(originalPrice).replace("Rp", "Rp ")
+                canvas.drawText(origPriceStr, priceColumnX, y, normalPaint)
+                val textWidth = normalPaint.measureText(origPriceStr)
+                val lineY = y - 4f
+                canvas.drawLine(priceColumnX, lineY, priceColumnX + textWidth, lineY, normalPaint)
+
+                canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
+                y += 18f
+
+                // Discounted price line
+                val discPriceStr = nf.format(discountedPrice).replace("Rp", "Rp ")
+                canvas.drawText("Harga diskon: $discPriceStr", xPadding + 20f, y, smallPaint)
+                y += 14f
+
+                // Discount amount
                 val discPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
                 canvas.drawText(discPart, xPadding + 20f, y, smallPaint)
-                y += 14f
+                y += 18f
+            } else {
+                // No discount - simple format
+                val price = nf.format(item.unitPrice).replace("Rp", "Rp ")
+
+                canvas.drawText(name, xPadding, y, normalPaint)
+                canvas.drawText(qty, qtyColumnX, y, normalPaint)
+                canvas.drawText(price, priceColumnX, y, normalPaint)
+                canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
+                y += 18f
             }
         }
 
@@ -428,19 +453,40 @@ object ReceiptPrinter {
             canvas.drawText(name, left, y, textPaint)
             y += 16f
             
-            // Quantity, price and subtotal
-            val qtyPart = "${item.quantity} x ${nf.format(item.unitPrice).replace("Rp", "Rp ")}"
-            val subPart = nf.format(item.subtotal).replace("Rp", "Rp ")
-            canvas.drawText(qtyPart, left + 8f, y, smallPaint)
-            // Right align subtotal at the amount column
-            canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, textPaint)
-            y += 18f
-            
-            // Discount if any
+            // If item has discount, show original price with strikethrough
             if (item.discount > 0) {
+                val originalPrice = item.productPrice
+                val discountPerUnit = item.discount / item.quantity
+                val discountedPricePerUnit = originalPrice - discountPerUnit
+
+                val origPriceStr = "@${nf.format(originalPrice).replace("Rp", "Rp ")}/pcs"
+                canvas.drawText(origPriceStr, left + 8f, y, smallPaint)
+
+                // Draw strikethrough line
+                val textWidth = smallPaint.measureText(origPriceStr)
+                val lineY = y - 4f
+                canvas.drawLine(left + 8f, lineY, left + 8f + textWidth, lineY, smallPaint)
+                y += 14f
+
+                // Quantity x discounted price per unit = subtotal
+                val qtyPart = "${item.quantity} x ${nf.format(discountedPricePerUnit).replace("Rp", "Rp ")}"
+                val subPart = nf.format(item.subtotal).replace("Rp", "Rp ")
+                canvas.drawText(qtyPart, left + 8f, y, smallPaint)
+                // Right align subtotal at the amount column
+                canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, textPaint)
+                y += 18f
+
+                // Total discount amount
                 val discountPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
                 canvas.drawText(discountPart, left + 8f, y, smallPaint)
                 y += 16f
+            } else {
+                // No discount - simple format
+                val qtyPart = "${item.quantity} x ${nf.format(item.unitPrice).replace("Rp", "Rp ")}"
+                val subPart = nf.format(item.subtotal).replace("Rp", "Rp ")
+                canvas.drawText(qtyPart, left + 8f, y, smallPaint)
+                canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, textPaint)
+                y += 18f
             }
         }
         y += 4f
@@ -676,12 +722,15 @@ object ReceiptPrinter {
         context: Context,
         settings: StoreSettings?,
         transaction: TransactionEntity
-    ) {
-        if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
+    ): ESCPosPrinter.PrintResult? {
+        return if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
+            // Return PrintResult for ESC/POS direct print
             ESCPosPrinter.printQueueTicket(context, settings, transaction)
         } else {
+            // For PDF, just generate and print/save, return null (no need for PrintResult)
             val result = generateQueueTicketPdf(context, settings, transaction)
             printOrSave(context, settings, result.pdfUri, result.fileName)
+            null
         }
     }
 }

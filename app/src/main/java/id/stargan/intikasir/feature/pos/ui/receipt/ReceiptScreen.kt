@@ -1,7 +1,9 @@
 package id.stargan.intikasir.feature.pos.ui.receipt
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,9 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
-import id.stargan.intikasir.ui.common.components.TransactionActions
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -31,6 +33,7 @@ fun ReceiptScreen(
     cashReceived: Double,
     cashChange: Double,
     paymentMethod: String,
+    transactionStatus: TransactionStatus = TransactionStatus.PAID,
     onFinish: () -> Unit,
     onPrint: () -> Unit,
     onPrintQueue: () -> Unit,
@@ -44,6 +47,9 @@ fun ReceiptScreen(
     val currentDate = dateFormat.format(Date())
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    var isPrinting by remember { mutableStateOf(false) }
+    var isPrintingQueue by remember { mutableStateOf(false) }
+    val isCompleted = transactionStatus == TransactionStatus.COMPLETED
 
     Scaffold(
         topBar = {
@@ -88,6 +94,60 @@ fun ReceiptScreen(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                // Status badge
+                if (isCompleted) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                "Selesai",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Payment,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                "Sudah Dibayar",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     currentDate,
                     style = MaterialTheme.typography.bodyMedium,
@@ -142,30 +202,157 @@ fun ReceiptScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action buttons - using reusable TransactionActions component
+            // Action buttons - custom implementation with printing states
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TransactionActions(
-                    status = TransactionStatus.PAID, // Receipt always shows PAID status
-                    onPrint = onPrint,
-                    onShare = onShare,
-                    onPrintQueue = onPrintQueue,
-                    onComplete = {
-                        onComplete()
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = "Transaksi telah diselesaikan",
-                                duration = SnackbarDuration.Short
-                            )
+                // Complete button - disabled if already completed
+                Button(
+                    onClick = {
+                        if (!isCompleted) {
+                            onComplete()
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "Transaksi telah diselesaikan",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
                         }
                     },
-                    isAdmin = false, // No delete in receipt
-                    onDeleteAdmin = null
-                )
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isPrinting && !isPrintingQueue && !isCompleted
+                ) {
+                    Icon(
+                        imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.Done,
+                        contentDescription = null
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isCompleted) "Transaksi Selesai" else "Selesai")
+                }
+
+                if (isCompleted) {
+                    Text(
+                        text = "Transaksi ini sudah diselesaikan",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Row: Cetak & Bagikan
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            if (!isPrinting) {
+                                isPrinting = true
+                                scope.launch {
+                                    try {
+                                        // Instant feedback
+                                        snackbarHostState.showSnackbar(
+                                            message = "Memproses pencetakan...",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        // Small delay for debounce
+                                        delay(300)
+                                        onPrint()
+                                        delay(500) // Give time for print to process
+                                        snackbarHostState.showSnackbar(
+                                            message = "Perintah cetak berhasil dikirim",
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Gagal mencetak: ${e.message}",
+                                            duration = SnackbarDuration.Long
+                                        )
+                                    } finally {
+                                        // Re-enable immediately after message shown
+                                        isPrinting = false
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isPrinting && !isPrintingQueue
+                    ) {
+                        if (isPrinting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Default.Print, contentDescription = null)
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (isPrinting) "Mencetak..." else "Cetak")
+                    }
+
+                    Button(
+                        onClick = onShare,
+                        modifier = Modifier.weight(1f),
+                        enabled = !isPrinting && !isPrintingQueue
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Bagikan")
+                    }
+                }
+
+                // Antrian button
+                OutlinedButton(
+                    onClick = {
+                        if (!isPrintingQueue) {
+                            isPrintingQueue = true
+                            scope.launch {
+                                try {
+                                    // Instant feedback
+                                    snackbarHostState.showSnackbar(
+                                        message = "Memproses nomor antrian...",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    // Small delay for debounce
+                                    delay(300)
+                                    onPrintQueue()
+                                    delay(500) // Give time for print to process
+                                    snackbarHostState.showSnackbar(
+                                        message = "Nomor antrian berhasil dicetak",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Gagal mencetak antrian: ${e.message}",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                } finally {
+                                    // Re-enable immediately after message shown
+                                    isPrintingQueue = false
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isPrinting && !isPrintingQueue
+                ) {
+                    if (isPrintingQueue) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(Icons.Default.Receipt, contentDescription = null)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isPrintingQueue) "Mencetak Antrian..." else "Cetak Antrian")
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

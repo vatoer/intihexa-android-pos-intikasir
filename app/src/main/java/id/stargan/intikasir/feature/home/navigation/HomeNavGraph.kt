@@ -1,5 +1,6 @@
 package id.stargan.intikasir.feature.home.navigation
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -176,7 +177,18 @@ fun NavGraphBuilder.homeNavGraph(
             },
             onPrintQueue = { tx ->
                 val settings = settingsState.settings
-                ReceiptPrinter.printQueueOrPdf(context, settings, tx)
+                val result = ReceiptPrinter.printQueueOrPdf(context, settings, tx)
+                // Handle result if ESC/POS direct print was used
+                result?.let { printResult ->
+                    when (printResult) {
+                        is ESCPosPrinter.PrintResult.Success -> {
+                            Toast.makeText(context, "Antrian berhasil dicetak", Toast.LENGTH_SHORT).show()
+                        }
+                        is ESCPosPrinter.PrintResult.Error -> {
+                            Toast.makeText(context, "Gagal mencetak antrian: ${printResult.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
             },
             onComplete = { tx ->
                 scope.launch {
@@ -311,6 +323,7 @@ fun NavGraphBuilder.homeNavGraph(
             cashReceived = state.transaction?.cashReceived ?: 0.0,
             cashChange = state.transaction?.cashChange ?: 0.0,
             paymentMethod = state.paymentMethod.name,
+            transactionStatus = state.transaction?.status ?: TransactionStatus.PAID,
             onFinish = {
                 navController.navigate(HomeRoutes.HOME) {
                     popUpTo(HomeRoutes.HOME) { inclusive = false }
@@ -321,7 +334,14 @@ fun NavGraphBuilder.homeNavGraph(
                 val items = state.transactionItems
                 val settings = settingsState.settings
                 if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
-                    ESCPosPrinter.printReceipt(context, settings, tx, items)
+                    when (val result = ESCPosPrinter.printReceipt(context, settings, tx, items)) {
+                        is ESCPosPrinter.PrintResult.Success -> {
+                            Toast.makeText(context, "Berhasil mencetak", Toast.LENGTH_SHORT).show()
+                        }
+                        is ESCPosPrinter.PrintResult.Error -> {
+                            Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                        }
+                    }
                 } else {
                     // Thermal PDF
                     val result = ReceiptPrinter.generateThermalReceiptPdf(
@@ -342,11 +362,22 @@ fun NavGraphBuilder.homeNavGraph(
                 val tx = state.transaction ?: return@ReceiptScreen
                 val settings = settingsState.settings
                 // Use ESC/POS if available; otherwise fallback to PDF
-                ReceiptPrinter.printQueueOrPdf(
+                val result = ReceiptPrinter.printQueueOrPdf(
                     context = context,
                     settings = settings,
                     transaction = tx
                 )
+                // Handle result if ESC/POS direct print was used
+                result?.let { printResult ->
+                    when (printResult) {
+                        is ESCPosPrinter.PrintResult.Success -> {
+                            Toast.makeText(context, "Antrian berhasil dicetak", Toast.LENGTH_SHORT).show()
+                        }
+                        is ESCPosPrinter.PrintResult.Error -> {
+                            Toast.makeText(context, "Gagal mencetak antrian: ${printResult.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
             },
             onShare = {
                 val tx = state.transaction ?: return@ReceiptScreen
