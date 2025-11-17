@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,12 +16,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.stargan.intikasir.feature.product.ui.components.ProductFilterDialog
 import id.stargan.intikasir.feature.product.ui.components.ProductListItem
 import id.stargan.intikasir.feature.product.ui.components.ProductSortDialog
-import id.stargan.intikasir.feature.product.ui.list.ProductListUiState
-import id.stargan.intikasir.feature.product.ui.list.ProductListUiEvent
 
 /**
  * Product List Screen
@@ -40,38 +38,20 @@ fun ProductListScreen(
 
     Scaffold(
         topBar = {
-            Column {
-                ProductListTopBar(
-                    searchQuery = uiState.searchQuery,
-                    onSearchQueryChange = {
-                        viewModel.onEvent(ProductListUiEvent.SearchQueryChanged(it))
-                    },
-                    onFilterClick = {
-                        viewModel.onEvent(ProductListUiEvent.ShowFilterDialog)
-                    },
-                    onSortClick = {
-                        viewModel.onEvent(ProductListUiEvent.ShowSortDialog)
-                    },
-                    onManageCategoriesClick = {
-                        viewModel.onEvent(ProductListUiEvent.ManageCategoriesClicked)
-                        onManageCategoriesClick()
-                    },
-                    onBackClick = onBackClick,
-                    isAdmin = uiState.isAdmin
-                )
-
-                // Active Filter Chips
-                ActiveFilterChips(
-                    uiState = uiState,
-                    onClearFilter = { viewModel.onEvent(ProductListUiEvent.FilterChanged(id.stargan.intikasir.feature.product.domain.model.ProductFilter())) },
-                    onClearCategoryFilter = {
-                        viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(categoryId = null)))
-                    },
-                    onClearPriceFilter = {
-                        viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(minPrice = null, maxPrice = null)))
-                    }
-                )
-            }
+            ProductListTopBar(
+                onFilterClick = {
+                    viewModel.onEvent(ProductListUiEvent.ShowFilterDialog)
+                },
+                onSortClick = {
+                    viewModel.onEvent(ProductListUiEvent.ShowSortDialog)
+                },
+                onManageCategoriesClick = {
+                    viewModel.onEvent(ProductListUiEvent.ManageCategoriesClicked)
+                    onManageCategoriesClick()
+                },
+                onBackClick = onBackClick,
+                isAdmin = uiState.isAdmin
+            )
         },
         floatingActionButton = {
             if (uiState.isAdmin) {
@@ -90,45 +70,73 @@ fun ProductListScreen(
         },
         modifier = modifier
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+            // Search Bar
+            SearchBar(
+                query = uiState.searchQuery,
+                onQueryChange = {
+                    viewModel.onEvent(ProductListUiEvent.SearchQueryChanged(it))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+
+            // Active Filter Chips
+            ActiveFilterChips(
+                uiState = uiState,
+                onClearFilter = { viewModel.onEvent(ProductListUiEvent.FilterChanged(id.stargan.intikasir.feature.product.domain.model.ProductFilter())) },
+                onClearCategoryFilter = {
+                    viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(categoryId = null)))
+                },
+                onClearPriceFilter = {
+                    viewModel.onEvent(ProductListUiEvent.FilterChanged(uiState.currentFilter.copy(minPrice = null, maxPrice = null)))
                 }
-                uiState.error != null -> {
-                    ErrorContent(
-                        error = uiState.error!!,
-                        onRetry = { viewModel.onEvent(ProductListUiEvent.RefreshProducts) },
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                uiState.products.isEmpty() -> {
-                    EmptyContent(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(
-                            items = uiState.products,
-                            key = { it.id }
-                        ) { product ->
-                            ProductListItem(
-                                product = product,
-                                onClick = {
-                                    viewModel.onEvent(ProductListUiEvent.ProductClicked(product.id))
-                                    onProductClick(product.id)
-                                }
-                            )
+            )
+
+            // Content
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when {
+                    uiState.isLoading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    uiState.error != null -> {
+                        ErrorContent(
+                            error = uiState.error!!,
+                            onRetry = { viewModel.onEvent(ProductListUiEvent.RefreshProducts) },
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    uiState.products.isEmpty() -> {
+                        EmptyContent(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = uiState.products,
+                                key = { it.id }
+                            ) { product ->
+                                ProductListItem(
+                                    product = product,
+                                    onClick = {
+                                        viewModel.onEvent(ProductListUiEvent.ProductClicked(product.id))
+                                        onProductClick(product.id)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -165,13 +173,11 @@ fun ProductListScreen(
 }
 
 /**
- * Top Bar dengan search dan actions
+ * Top Bar dengan actions
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProductListTopBar(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
     onFilterClick: () -> Unit,
     onSortClick: () -> Unit,
     onManageCategoriesClick: () -> Unit,
@@ -179,79 +185,71 @@ private fun ProductListTopBar(
     isAdmin: Boolean,
     modifier: Modifier = Modifier
 ) {
-    var isSearchActive by remember { mutableStateOf(false) }
+    TopAppBar(
+        title = { Text("Daftar Produk") },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Kembali"
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onSortClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                    contentDescription = "Urutkan"
+                )
+            }
 
-    Column(modifier = modifier) {
-        TopAppBar(
-            title = {
-                if (isSearchActive) {
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        placeholder = { Text("Cari produk...") },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                        )
-                    )
-                } else {
-                    Text("Daftar Produk")
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
+            IconButton(onClick = onFilterClick) {
+                Icon(
+                    imageVector = Icons.Default.FilterAlt,
+                    contentDescription = "Filter"
+                )
+            }
+
+            if (isAdmin) {
+                IconButton(onClick = onManageCategoriesClick) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali"
+                        imageVector = Icons.Default.Category,
+                        contentDescription = "Kelola Kategori"
                     )
-                }
-            },
-            actions = {
-                if (!isSearchActive) {
-                    IconButton(onClick = { isSearchActive = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Cari"
-                        )
-                    }
-                } else {
-                    IconButton(onClick = {
-                        isSearchActive = false
-                        onSearchQueryChange("")
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Tutup"
-                        )
-                    }
-                }
-
-                IconButton(onClick = onSortClick) {
-                    Icon(
-                        imageVector = Icons.Default.Sort,
-                        contentDescription = "Urutkan"
-                    )
-                }
-
-                IconButton(onClick = onFilterClick) {
-                    Icon(
-                        imageVector = Icons.Default.FilterAlt,
-                        contentDescription = "Filter"
-                    )
-                }
-
-                if (isAdmin) {
-                    IconButton(onClick = onManageCategoriesClick) {
-                        Icon(
-                            imageVector = Icons.Default.Category,
-                            contentDescription = "Kelola Kategori"
-                        )
-                    }
                 }
             }
-        )
-    }
+        },
+        modifier = modifier
+    )
+}
+
+/**
+ * Search Bar Component
+ */
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier,
+        placeholder = { Text("Cari produk...") },
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                }
+            }
+        },
+        singleLine = true,
+        shape = MaterialTheme.shapes.medium
+    )
 }
 
 /**
