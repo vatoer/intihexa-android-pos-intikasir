@@ -2,6 +2,7 @@ package id.stargan.intikasir.feature.pos.print
 
 import android.content.ContentValues
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import android.graphics.*
 import android.graphics.pdf.PdfDocument
@@ -25,6 +26,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.min
 
 object ReceiptPrinter {
 
@@ -73,19 +75,31 @@ object ReceiptPrinter {
                 if (logoFile.exists()) {
                     val bmp = BitmapFactory.decodeFile(settings.storeLogo)
                     if (bmp != null) {
-                        val maxW = 100
+                        // Limit logo to reasonable size (max 80 pixels for receipt)
+                        val maxW = 80
+                        val maxH = 80
                         val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                        val w = maxW
-                        val h = (maxW / ratio).toInt().coerceAtLeast(1)
+
+                        var w = min(maxW, bmp.width)
+                        var h = (w / ratio).toInt().coerceAtLeast(1)
+
+                        // If height exceeds max, recalculate
+                        if (h > maxH) {
+                            h = maxH
+                            w = (h * ratio).toInt().coerceAtLeast(1)
+                        }
+
                         val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
                         val cx = (pageInfo.pageWidth - scaled.width) / 2f
                         canvas.drawBitmap(scaled, cx, y, paint)
-                        y += scaled.height + 16
+                        y += scaled.height + 12 // Reduced spacing
                         bmp.recycle()
                         scaled.recycle()
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.w("ReceiptPrinter", "Failed to load logo for PDF", e)
+            }
         }
 
         // Store name & info
@@ -382,10 +396,20 @@ object ReceiptPrinter {
                 if (logoFile.exists()) {
                     val bmp = BitmapFactory.decodeFile(settings.storeLogo)
                     if (bmp != null) {
-                        val maxW = if (paperWidthMm >= 80) 120 else 80
+                        // Limit logo to reasonable size for thermal receipt
+                        val maxW = if (paperWidthMm >= 80) 80 else 60 // Reduced from 120/80
+                        val maxH = 80 // Max height
                         val ratio = bmp.width.toFloat() / bmp.height.toFloat()
-                        val w = maxW
-                        val h = (maxW / ratio).toInt().coerceAtLeast(1)
+
+                        var w = min(maxW, bmp.width)
+                        var h = (w / ratio).toInt().coerceAtLeast(1)
+
+                        // If height exceeds max, recalculate
+                        if (h > maxH) {
+                            h = maxH
+                            w = (h * ratio).toInt().coerceAtLeast(1)
+                        }
+
                         val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
                         val cx = (pageWidthPx - scaled.width) / 2f
                         canvas.drawBitmap(scaled, cx, y, null)
@@ -394,7 +418,9 @@ object ReceiptPrinter {
                         scaled.recycle()
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.w("ReceiptPrinter", "Failed to load logo for thermal PDF", e)
+            }
         }
 
         // Header - Store Name
@@ -729,6 +755,26 @@ object ReceiptPrinter {
         } else {
             // For PDF, just generate and print/save, return null (no need for PrintResult)
             val result = generateQueueTicketPdf(context, settings, transaction)
+            printOrSave(context, settings, result.pdfUri, result.fileName)
+            null
+        }
+    }
+
+    /**
+     * Print receipt - auto-select ESC/POS or PDF based on settings
+     */
+    fun printReceiptOrPdf(
+        context: Context,
+        settings: StoreSettings?,
+        transaction: TransactionEntity,
+        items: List<TransactionItemEntity>
+    ): ESCPosPrinter.PrintResult? {
+        return if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
+            // ESC/POS direct print via Bluetooth
+            ESCPosPrinter.printReceipt(context, settings, transaction, items)
+        } else {
+            // PDF print/save
+            val result = generateThermalReceiptPdf(context, settings, transaction, items)
             printOrSave(context, settings, result.pdfUri, result.fileName)
             null
         }

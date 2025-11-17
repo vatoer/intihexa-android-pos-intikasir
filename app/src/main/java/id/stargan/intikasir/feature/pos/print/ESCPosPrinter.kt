@@ -6,17 +6,21 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.core.content.ContextCompat
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.util.BluetoothPermissionHelper
+import java.io.File
 import java.io.OutputStream
 import java.nio.charset.Charset
 import java.text.NumberFormat
 import java.util.Locale
 import java.util.UUID
+import kotlin.math.min
 
 /**
  * Minimal ESC/POS printer helper (Bluetooth RFCOMM)
@@ -88,7 +92,7 @@ object ESCPosPrinter {
                 socket.connect()
                 Log.d(TAG, "printReceipt: Connected, sending data...")
                 socket.outputStream.use { out ->
-                    writeReceipt(out, settings, transaction, items)
+                    writeReceipt(out, settings, transaction, items, context)
                 }
                 Log.i(TAG, "printReceipt: Print successful")
                 return PrintResult.Success
@@ -112,7 +116,8 @@ object ESCPosPrinter {
         out: OutputStream,
         settings: StoreSettings,
         transaction: TransactionEntity,
-        items: List<TransactionItemEntity>
+        items: List<TransactionItemEntity>,
+        context: Context
     ) {
         val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
         val cpl = settings.paperCharPerLine
@@ -133,7 +138,22 @@ object ESCPosPrinter {
         // Initialize
         cmd(byteArrayOf(0x1B, 0x40))
 
-        // Header
+        // Logo (if enabled and available) - using pre-generated thermal bitmap
+        if (settings.printLogo) {
+            try {
+                val logoSuccess = id.stargan.intikasir.util.ThermalLogoHelper.printThermalLogo(context, out)
+                if (logoSuccess) {
+                    text("") // line break after logo
+                    Log.d(TAG, "writeReceipt: Logo printed successfully")
+                } else {
+                    Log.w(TAG, "writeReceipt: Logo file not found or invalid, continuing without logo")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "writeReceipt: Failed to print logo, continuing without logo", e)
+            }
+        }
+
+        // Header - always print regardless of logo
         alignCenter(); boldOn(); text((settings.storeName.ifBlank { "Toko" }).take(cpl)); boldOff()
         settings.storeAddress.takeIf { it.isNotBlank() }?.let { text(it.take(cpl)) }
         divider()
@@ -315,5 +335,83 @@ object ESCPosPrinter {
 
         text(); divider(); alignCenter(); text("Terima kasih"); feed(3)
         if (settings.autoCut) cut()
+    }
+
+    /**
+     * Print bitmap image using ESC * command (bit image)
+     * This is a simplified implementation for logos
+     */
+    private fun printBitmap(out: OutputStream, bitmap: Bitmap, maxWidth: Int) {
+        try {
+            // Scale bitmap to fit printer width (in dots, approx 8 dots per char)
+            val maxDots = maxWidth * 8
+            val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
+            val targetWidth = min(maxDots, bitmap.width)
+            val targetHeight = (targetWidth / ratio).toInt().coerceAtLeast(1)
+
+            val scaled = if (bitmap.width != targetWidth || bitmap.height != targetHeight) {
+                Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+            } else {
+                bitmap
+            }
+
+            // Convert to monochrome
+            val threshold = 128
+            val dots = Array(scaled.height) { y ->
+                BooleanArray(scaled.width) { x ->
+                    val pixel = scaled.getPixel(x, y)
+                    val r = (pixel shr 16) and 0xFF
+                    val g = (pixel shr 8) and 0xFF
+                    val b = pixel and 0xFF
+                    val gray = (r + g + b) / 3
+                    gray < threshold // dark pixels become true
+                }
+            }
+
+            // Center align
+            out.write(byteArrayOf(0x1B, 0x61, 0x01))
+
+            // Print using ESC * command (bit image mode)
+            // Process in strips of 24 dots height (3 bytes per column)
+            var y = 0
+            while (y < dots.size) {
+                val stripHeight = min(24, dots.size - y)
+
+                // ESC * m nL nH d1...dk
+                // m = 33 (24-dot double-density)
+                val nL = (scaled.width and 0xFF).toByte()
+                val nH = ((scaled.width shr 8) and 0xFF).toByte()
+
+                out.write(byteArrayOf(0x1B, 0x2A, 33, nL, nH))
+
+                // Send bitmap data column by column
+                for (x in 0 until scaled.width) {
+                    // Each column is 3 bytes for 24 dots
+                    val bytes = ByteArray(3)
+                    for (k in 0 until stripHeight) {
+                        val dotY = y + k
+                        if (dotY < dots.size && x < dots[dotY].size && dots[dotY][x]) {
+                            val byteIndex = k / 8
+                            val bitIndex = 7 - (k % 8)
+                            bytes[byteIndex] = (bytes[byteIndex].toInt() or (1 shl bitIndex)).toByte()
+                        }
+                    }
+                    out.write(bytes)
+                }
+
+                // Line feed
+                out.write(byteArrayOf(0x0A))
+                y += 24
+            }
+
+            // Back to left align
+            out.write(byteArrayOf(0x1B, 0x61, 0x00))
+
+            if (scaled != bitmap) {
+                scaled.recycle()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "printBitmap: Error", e)
+        }
     }
 }

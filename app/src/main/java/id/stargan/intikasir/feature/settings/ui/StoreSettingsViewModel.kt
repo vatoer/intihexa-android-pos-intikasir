@@ -1,9 +1,11 @@
 package id.stargan.intikasir.feature.settings.ui
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import id.stargan.intikasir.data.local.image.ImageRepository
 import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.feature.settings.domain.usecase.GetStoreSettingsUseCase
@@ -15,6 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StoreSettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getStoreSettingsUseCase: GetStoreSettingsUseCase,
     private val updateStoreLogoUseCase: UpdateStoreLogoUseCase,
     private val imageRepository: ImageRepository,
@@ -37,6 +40,23 @@ class StoreSettingsViewModel @Inject constructor(
                     _uiState.update { it.copy(isImageProcessing = true) }
                     try {
                         val path = imageRepository.saveImage(event.uri)
+
+                        // Generate thermal-ready bitmap for efficient printing
+                        val paperWidthChars = _uiState.value.settings?.paperCharPerLine ?: 32
+                        try {
+                            val bitmap = android.graphics.BitmapFactory.decodeFile(path)
+                            if (bitmap != null) {
+                                id.stargan.intikasir.util.ThermalLogoHelper.saveLogoAndGenerateThermal(
+                                    context,
+                                    bitmap,
+                                    paperWidthChars
+                                )
+                                bitmap.recycle()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("StoreSettingsVM", "Failed to generate thermal logo", e)
+                        }
+
                         updateStoreLogoUseCase(path)
                         // Convert file path to Uri for preview
                         val fileUri = Uri.parse("file://$path")
@@ -44,7 +64,7 @@ class StoreSettingsViewModel @Inject constructor(
                             it.copy(
                                 logoPreviewUri = fileUri,
                                 isImageProcessing = false,
-                                successMessage = "Logo berhasil diperbarui"
+                                successMessage = "Logo berhasil diperbarui dan siap print"
                             )
                         }
                     } catch (e: Exception) {
@@ -62,11 +82,31 @@ class StoreSettingsViewModel @Inject constructor(
                     // Delete old logo if exists
                     _uiState.value.settings?.storeLogo?.let { oldPath ->
                         imageRepository.deleteImage(oldPath)
+                        // Also delete old thermal logo
+                        id.stargan.intikasir.util.ThermalLogoHelper.deleteLogo(context)
                     }
 
                     _uiState.update { it.copy(isImageProcessing = true) }
                     try {
+                        // Save cropped image
                         val path = imageRepository.saveImage(event.uri)
+
+                        // Generate thermal-ready bitmap for efficient printing
+                        val paperWidthChars = _uiState.value.settings?.paperCharPerLine ?: 32
+                        try {
+                            val bitmap = android.graphics.BitmapFactory.decodeFile(path)
+                            if (bitmap != null) {
+                                id.stargan.intikasir.util.ThermalLogoHelper.saveLogoAndGenerateThermal(
+                                    context,
+                                    bitmap,
+                                    paperWidthChars
+                                )
+                                bitmap.recycle()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("StoreSettingsVM", "Failed to generate thermal logo", e)
+                        }
+
                         updateStoreLogoUseCase(path)
                         // Convert file path to Uri for preview
                         val fileUri = Uri.parse("file://$path")
@@ -74,7 +114,7 @@ class StoreSettingsViewModel @Inject constructor(
                             it.copy(
                                 logoPreviewUri = fileUri,
                                 isImageProcessing = false,
-                                successMessage = "Logo berhasil diperbarui"
+                                successMessage = "Logo berhasil diperbarui dan siap print"
                             )
                         }
                     } catch (e: Exception) {
@@ -93,6 +133,9 @@ class StoreSettingsViewModel @Inject constructor(
                         _uiState.value.settings?.storeLogo?.let { path ->
                             imageRepository.deleteImage(path)
                         }
+                        // Delete thermal logo
+                        id.stargan.intikasir.util.ThermalLogoHelper.deleteLogo(context)
+
                         updateStoreLogoUseCase(null)
                         _uiState.update {
                             it.copy(

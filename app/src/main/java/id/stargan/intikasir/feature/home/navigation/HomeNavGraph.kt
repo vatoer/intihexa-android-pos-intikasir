@@ -152,8 +152,23 @@ fun NavGraphBuilder.homeNavGraph(
                     posVm.loadTransaction(txId)
                     val items = posVm.uiState.value.transactionItems
                     val settings = settingsState.settings
-                    val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
-                    ReceiptPrinter.printOrSave(context, settings, result.pdfUri, result.fileName)
+
+                    val result = ReceiptPrinter.printReceiptOrPdf(context, settings, tx, items)
+
+                    // Show feedback
+                    result?.let { printResult ->
+                        when (printResult) {
+                            is ESCPosPrinter.PrintResult.Success -> {
+                                Toast.makeText(context, "Struk berhasil dicetak", Toast.LENGTH_SHORT).show()
+                            }
+                            is ESCPosPrinter.PrintResult.Error -> {
+                                Toast.makeText(context, "Gagal mencetak: ${printResult.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } ?: run {
+                        // PDF generated (no ESC/POS result)
+                        Toast.makeText(context, "Struk berhasil dibuat", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onShare = { tx ->
