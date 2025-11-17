@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.reports.domain.model.PeriodType
 import id.stargan.intikasir.feature.reports.ui.components.SummaryCards
-import id.stargan.intikasir.feature.reports.ui.components.RevenueExpenseTrendChart
+import id.stargan.intikasir.feature.reports.ui.components.RevenueExpenseTrendLineChart
+import id.stargan.intikasir.feature.reports.ui.components.PaymentMethodPieChart
+import id.stargan.intikasir.feature.reports.ui.components.ExpenseCategoryBarChart
 import id.stargan.intikasir.feature.reports.ui.components.TopProductsCard
 import id.stargan.intikasir.feature.reports.ui.components.PaymentMethodBreakdownCard
 import id.stargan.intikasir.feature.reports.ui.components.ExpenseCategoryBreakdownCard
@@ -198,9 +200,9 @@ private fun DashboardContent(
             transactionCount = dashboard.transactionCount
         )
 
-        // Revenue & Expense Trend Chart
-        if (dashboard.dailyRevenue.isNotEmpty()) {
-            RevenueExpenseTrendChart(
+        // Revenue & Expense Trend Line Chart (Vico)
+        if (dashboard.dailyRevenue.isNotEmpty() || dashboard.dailyExpense.isNotEmpty()) {
+            RevenueExpenseTrendLineChart(
                 revenueData = dashboard.dailyRevenue,
                 expenseData = dashboard.dailyExpense
             )
@@ -211,14 +213,14 @@ private fun DashboardContent(
             TopProductsCard(products = dashboard.topProducts)
         }
 
-        // Payment Method Breakdown
+        // Payment Method Pie Chart (Visual)
         if (dashboard.paymentMethodBreakdown.isNotEmpty()) {
-            PaymentMethodBreakdownCard(data = dashboard.paymentMethodBreakdown)
+            PaymentMethodPieChart(data = dashboard.paymentMethodBreakdown)
         }
 
-        // Expense Category Breakdown
+        // Expense Category Bar Chart (Visual)
         if (dashboard.expenseCategoryBreakdown.isNotEmpty()) {
-            ExpenseCategoryBreakdownCard(data = dashboard.expenseCategoryBreakdown)
+            ExpenseCategoryBarChart(data = dashboard.expenseCategoryBreakdown)
         }
 
         Spacer(modifier = Modifier.height(32.dp))

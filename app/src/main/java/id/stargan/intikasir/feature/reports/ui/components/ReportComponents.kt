@@ -21,6 +21,7 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
+
 /**
  * Summary Cards untuk metrik utama
  */
@@ -139,77 +140,6 @@ private fun MetricCard(
     }
 }
 
-/**
- * Revenue & Expense Trend Chart (Simple bar chart)
- */
-@Suppress("UNUSED_PARAMETER") // Will be used when chart library is integrated
-@Composable
-fun RevenueExpenseTrendChart(
-    revenueData: List<DailyData>,
-    expenseData: List<DailyData>,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "Tren Pendapatan & Pengeluaran",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Simple text-based chart for now
-            // TODO: Integrate proper charting library (MPAndroidChart or Vico)
-            Text(
-                text = "Grafik akan ditampilkan di sini",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)
-            )
-
-            // Legend
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                LegendItem(
-                    color = MaterialTheme.colorScheme.extendedColors.incomeColor,
-                    label = "Pendapatan"
-                )
-                LegendItem(
-                    color = MaterialTheme.colorScheme.extendedColors.expenseColor,
-                    label = "Pengeluaran"
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegendItem(
-    color: Color,
-    label: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(12.dp),
-            color = color,
-            shape = MaterialTheme.shapes.small
-        ) {}
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
 
 /**
  * Top Products Card

@@ -100,6 +100,7 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+
     // Image cropping
     implementation("com.github.yalantis:ucrop:2.2.8")
 

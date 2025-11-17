@@ -5,14 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionStatus
 import id.stargan.intikasir.feature.history.viewmodel.HistoryEvent
@@ -43,8 +37,8 @@ fun HistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply { maximumFractionDigits = 0 } }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")) }
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -225,7 +219,7 @@ private fun HistoryFilterBar(
         // Date range chips
         Text("Periode", style = MaterialTheme.typography.labelMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DateRange.values().forEach { range ->
+            DateRange.entries.forEach { range ->
                 FilterChip(
                     selected = selectedRange == range,
                     onClick = { onRangeChange(range) },
@@ -252,7 +246,7 @@ private fun HistoryFilterBar(
                 onClick = { onStatusChange(null) },
                 label = { Text("Semua") }
             )
-            TransactionStatus.values().forEach { status ->
+            TransactionStatus.entries.forEach { status ->
                 FilterChip(
                     selected = selectedStatus == status,
                     onClick = { onStatusChange(status) },
@@ -319,8 +313,8 @@ fun HistoryDetailScreen(
     val uiState by viewModel.detailUiState.collectAsState()
     val listUiState by viewModel.uiState.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply { maximumFractionDigits = 0 } }
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
