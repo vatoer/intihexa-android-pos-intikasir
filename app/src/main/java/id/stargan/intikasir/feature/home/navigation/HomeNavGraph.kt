@@ -348,29 +348,22 @@ fun NavGraphBuilder.homeNavGraph(
                 val tx = state.transaction ?: return@ReceiptScreen
                 val items = state.transactionItems
                 val settings = settingsState.settings
-                if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
-                    when (val result = ESCPosPrinter.printReceipt(context, settings, tx, items)) {
+
+                // Use helper function for consistency
+                val result = ReceiptPrinter.printReceiptOrPdf(context, settings, tx, items)
+
+                // Show feedback
+                result?.let { printResult ->
+                    when (printResult) {
                         is ESCPosPrinter.PrintResult.Success -> {
-                            Toast.makeText(context, "Berhasil mencetak", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Struk berhasil dicetak", Toast.LENGTH_SHORT).show()
                         }
                         is ESCPosPrinter.PrintResult.Error -> {
-                            Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Gagal mencetak: ${printResult.message}", Toast.LENGTH_LONG).show()
                         }
                     }
-                } else {
-                    // Thermal PDF
-                    val result = ReceiptPrinter.generateThermalReceiptPdf(
-                        context = context,
-                        settings = settings,
-                        transaction = tx,
-                        items = items
-                    )
-                    ReceiptPrinter.printOrSave(
-                        context = context,
-                        settings = settings,
-                        pdfUri = result.pdfUri,
-                        jobName = result.fileName
-                    )
+                } ?: run {
+                    Toast.makeText(context, "Struk berhasil dibuat", Toast.LENGTH_SHORT).show()
                 }
             },
             onPrintQueue = {

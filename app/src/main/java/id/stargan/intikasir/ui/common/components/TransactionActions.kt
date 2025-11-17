@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun TransactionActions(
@@ -23,7 +25,10 @@ fun TransactionActions(
     isAdmin: Boolean = false,
     onDeleteAdmin: (() -> Unit)? = null,
 ) {
+    val scope = rememberCoroutineScope()
     var completing by remember { mutableStateOf(false) }
+    var printing by remember { mutableStateOf(false) }
+    var printingQueue by remember { mutableStateOf(false) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Edit for DRAFT/PENDING
@@ -54,14 +59,38 @@ fun TransactionActions(
         // Row: Cetak & Bagikan
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (onPrint != null) {
-                Button(onClick = onPrint, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Print, contentDescription = null)
+                Button(
+                    onClick = {
+                        printing = true
+                        onPrint()
+                        // Reset after a short delay (feedback should come from onPrint itself)
+                        scope.launch {
+                            delay(1000)
+                            printing = false
+                        }
+                    },
+                    enabled = !printing && !printingQueue,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (printing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(Icons.Default.Print, contentDescription = null)
+                    }
                     Spacer(Modifier.width(6.dp))
-                    Text("Cetak")
+                    Text(if (printing) "Mencetak..." else "Cetak")
                 }
             }
             if (onShare != null) {
-                Button(onClick = onShare, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = onShare,
+                    enabled = !printing && !printingQueue,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(Icons.Default.Share, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Bagikan")
@@ -72,10 +101,30 @@ fun TransactionActions(
         // Row: Antrian & Hapus (Admin)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             if (onPrintQueue != null) {
-                OutlinedButton(onClick = onPrintQueue, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.Receipt, contentDescription = null)
+                OutlinedButton(
+                    onClick = {
+                        printingQueue = true
+                        onPrintQueue()
+                        // Reset after a short delay
+                        scope.launch {
+                            delay(1000)
+                            printingQueue = false
+                        }
+                    },
+                    enabled = !printing && !printingQueue,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (printingQueue) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(Icons.Default.Receipt, contentDescription = null)
+                    }
                     Spacer(Modifier.width(6.dp))
-                    Text("Antrian")
+                    Text(if (printingQueue) "Mencetak..." else "Antrian")
                 }
             }
             if (isAdmin && onDeleteAdmin != null) {
