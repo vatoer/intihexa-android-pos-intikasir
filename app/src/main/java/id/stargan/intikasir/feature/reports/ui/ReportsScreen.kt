@@ -1,30 +1,17 @@
 package id.stargan.intikasir.feature.reports.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import id.stargan.intikasir.feature.reports.domain.model.PeriodType
-import id.stargan.intikasir.feature.reports.ui.components.SummaryCards
-import id.stargan.intikasir.feature.reports.ui.components.RevenueExpenseTrendLineChart
-import id.stargan.intikasir.feature.reports.ui.components.PaymentMethodPieChart
-import id.stargan.intikasir.feature.reports.ui.components.ExpenseCategoryBarChart
-import id.stargan.intikasir.feature.reports.ui.components.TopProductsCard
-import id.stargan.intikasir.feature.reports.ui.components.PaymentMethodBreakdownCard
-import id.stargan.intikasir.feature.reports.ui.components.ExpenseCategoryBreakdownCard
-import id.stargan.intikasir.feature.reports.ui.components.PeriodInfoCard
-import id.stargan.intikasir.feature.reports.ui.components.NetProfitCard
-import id.stargan.intikasir.feature.reports.ui.components.RevenueBreakdownCard
-import id.stargan.intikasir.feature.reports.ui.components.ExpenseBreakdownCard
+import id.stargan.intikasir.feature.reports.ui.components.DashboardContent
+import id.stargan.intikasir.feature.reports.ui.components.ProfitLossContent
+import id.stargan.intikasir.feature.reports.ui.components.ReportsTabRow
+import id.stargan.intikasir.feature.reports.ui.components.ReportsTopBar
+import id.stargan.intikasir.feature.reports.ui.dialogs.ExportDialog
+import id.stargan.intikasir.feature.reports.ui.dialogs.PeriodPickerDialog
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +22,6 @@ fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -56,38 +42,12 @@ fun ReportsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Laporan") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
-                    }
-                },
-                actions = {
-                    // Period selector
-                    TextButton(
-                        onClick = { viewModel.onEvent(ReportsEvent.ShowPeriodPicker) }
-                    ) {
-                        Text(getPeriodLabel(uiState.selectedPeriod))
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                    }
-
-                    // Refresh
-                    IconButton(onClick = { viewModel.onEvent(ReportsEvent.Refresh) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-
-                    // Export
-                    IconButton(onClick = { viewModel.onEvent(ReportsEvent.ShowExportDialog) }) {
-                        Icon(Icons.Default.FileDownload, contentDescription = "Export")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            ReportsTopBar(
+                selectedPeriod = uiState.selectedPeriod,
+                onNavigateBack = onNavigateBack,
+                onPeriodClick = { viewModel.onEvent(ReportsEvent.ShowPeriodPicker) },
+                onRefreshClick = { viewModel.onEvent(ReportsEvent.Refresh) },
+                onExportClick = { viewModel.onEvent(ReportsEvent.ShowExportDialog) }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -99,25 +59,10 @@ fun ReportsScreen(
                 .padding(padding)
         ) {
             // Tabs
-            PrimaryTabRow(
-                selectedTabIndex = when (uiState.selectedTab) {
-                    ReportTab.DASHBOARD -> 0
-                    ReportTab.PROFIT_LOSS -> 1
-                }
-            ) {
-                Tab(
-                    selected = uiState.selectedTab == ReportTab.DASHBOARD,
-                    onClick = { viewModel.onEvent(ReportsEvent.SelectTab(ReportTab.DASHBOARD)) },
-                    text = { Text("Dashboard") },
-                    icon = { Icon(Icons.Default.Dashboard, contentDescription = null) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == ReportTab.PROFIT_LOSS,
-                    onClick = { viewModel.onEvent(ReportsEvent.SelectTab(ReportTab.PROFIT_LOSS)) },
-                    text = { Text("Laba Rugi") },
-                    icon = { Icon(Icons.Default.AccountBalance, contentDescription = null) }
-                )
-            }
+            ReportsTabRow(
+                selectedTab = uiState.selectedTab,
+                onTabSelected = { viewModel.onEvent(ReportsEvent.SelectTab(it)) }
+            )
 
             // Content
             if (uiState.isLoading) {
@@ -177,177 +122,6 @@ fun ReportsScreen(
             },
             onDismiss = { viewModel.onEvent(ReportsEvent.HideExportDialog) }
         )
-    }
-}
-
-@Composable
-private fun DashboardContent(
-    dashboard: id.stargan.intikasir.feature.reports.domain.model.ReportDashboard,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Summary Cards
-        SummaryCards(
-            revenue = dashboard.totalRevenue,
-            expense = dashboard.totalExpense,
-            profit = dashboard.netProfit,
-            transactionCount = dashboard.transactionCount
-        )
-
-        // Revenue & Expense Trend Line Chart (Vico)
-        if (dashboard.dailyRevenue.isNotEmpty() || dashboard.dailyExpense.isNotEmpty()) {
-            RevenueExpenseTrendLineChart(
-                revenueData = dashboard.dailyRevenue,
-                expenseData = dashboard.dailyExpense
-            )
-        }
-
-        // Top Products
-        if (dashboard.topProducts.isNotEmpty()) {
-            TopProductsCard(products = dashboard.topProducts)
-        }
-
-        // Payment Method Pie Chart (Visual)
-        if (dashboard.paymentMethodBreakdown.isNotEmpty()) {
-            PaymentMethodPieChart(data = dashboard.paymentMethodBreakdown)
-        }
-
-        // Expense Category Bar Chart (Visual)
-        if (dashboard.expenseCategoryBreakdown.isNotEmpty()) {
-            ExpenseCategoryBarChart(data = dashboard.expenseCategoryBreakdown)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-    }
-}
-
-@Composable
-private fun ProfitLossContent(
-    report: id.stargan.intikasir.feature.reports.domain.model.ProfitLossReport,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Period Info
-        PeriodInfoCard(
-            startDate = report.periodStart,
-            endDate = report.periodEnd
-        )
-
-        // Net Profit Summary
-        NetProfitCard(
-            netProfit = report.netProfit,
-            profitMargin = report.profitMargin
-        )
-
-        // Revenue Breakdown
-        RevenueBreakdownCard(revenue = report.revenue)
-
-        // Expense Breakdown
-        ExpenseBreakdownCard(expenses = report.expenses)
-
-        Spacer(modifier = Modifier.height(32.dp))
-    }
-}
-
-@Composable
-private fun PeriodPickerDialog(
-    currentPeriod: PeriodType,
-    onPeriodSelected: (PeriodType) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Pilih Periode") },
-        text = {
-            Column {
-                PeriodType.entries.filter { it != PeriodType.CUSTOM }.forEach { period ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = currentPeriod == period,
-                            onClick = { onPeriodSelected(period) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(getPeriodLabel(period))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Tutup")
-            }
-        }
-    )
-}
-
-@Composable
-private fun ExportDialog(
-    onExportCSV: () -> Unit,
-    onExportPDF: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Export Laporan") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Pilih format export:")
-
-                OutlinedButton(
-                    onClick = onExportCSV,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.TableChart, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export ke CSV (Excel)")
-                }
-
-                OutlinedButton(
-                    onClick = onExportPDF,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export ke PDF")
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Batal")
-            }
-        }
-    )
-}
-
-private fun getPeriodLabel(period: PeriodType): String {
-    return when (period) {
-        PeriodType.TODAY -> "Hari Ini"
-        PeriodType.YESTERDAY -> "Kemarin"
-        PeriodType.THIS_WEEK -> "Minggu Ini"
-        PeriodType.LAST_WEEK -> "Minggu Lalu"
-        PeriodType.THIS_MONTH -> "Bulan Ini"
-        PeriodType.LAST_MONTH -> "Bulan Lalu"
-        PeriodType.THIS_YEAR -> "Tahun Ini"
-        PeriodType.CUSTOM -> "Custom"
     }
 }
 
