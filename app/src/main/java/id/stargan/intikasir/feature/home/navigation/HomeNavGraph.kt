@@ -35,8 +35,8 @@ import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
-import id.stargan.intikasir.feature.history.ui.HistoryScreen
-import id.stargan.intikasir.feature.history.ui.HistoryDetailScreen
+import id.stargan.intikasir.feature.history.ui.screens.HistoryScreen
+import id.stargan.intikasir.feature.history.ui.components.HistoryDetailScreen
 import id.stargan.intikasir.feature.expense.ui.ExpenseListScreen
 import id.stargan.intikasir.feature.expense.ui.ExpenseFormScreen
 import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase

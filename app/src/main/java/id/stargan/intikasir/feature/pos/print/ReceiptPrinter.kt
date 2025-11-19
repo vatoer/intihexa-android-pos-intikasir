@@ -20,6 +20,7 @@ import androidx.core.net.toUri
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
+import id.stargan.intikasir.util.BluetoothPermissionHelper
 import java.io.File
 import java.io.FileOutputStream
 import java.text.NumberFormat
@@ -769,13 +770,22 @@ object ReceiptPrinter {
         transaction: TransactionEntity,
         items: List<TransactionItemEntity>
     ): ESCPosPrinter.PrintResult? {
-        return if (settings?.useEscPosDirect == true && !settings.printerAddress.isNullOrBlank()) {
-            // ESC/POS direct print via Bluetooth
-            ESCPosPrinter.printReceipt(context, settings, transaction, items)
+        val safeSettings = settings
+        if (safeSettings == null) {
+            Log.w("ReceiptPrinter", "printReceiptOrPdf: settings null, aborting")
+            return ESCPosPrinter.PrintResult.Error("Pengaturan printer belum siap")
+        }
+
+        // Log for debugging (validation moved to UI layer to prevent race conditions)
+        Log.d("ReceiptPrinter", "printReceiptOrPdf: items=${items.size} useEscPosDirect=${safeSettings.useEscPosDirect} printerAddress=${safeSettings.printerAddress} connected=${safeSettings.printerConnected}")
+
+        val canBluetooth = !safeSettings.printerAddress.isNullOrBlank() && BluetoothPermissionHelper.hasBluetoothPermissions(context)
+        val shouldEscPos = (safeSettings.useEscPosDirect || (safeSettings.printerConnected && canBluetooth))
+        return if (shouldEscPos) {
+            ESCPosPrinter.printReceipt(context, safeSettings, transaction, items)
         } else {
-            // PDF print/save
-            val result = generateThermalReceiptPdf(context, settings, transaction, items)
-            printOrSave(context, settings, result.pdfUri, result.fileName)
+            val result = generateThermalReceiptPdf(context, safeSettings, transaction, items)
+            printOrSave(context, safeSettings, result.pdfUri, result.fileName)
             null
         }
     }
