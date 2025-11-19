@@ -252,30 +252,11 @@ fun ReceiptScreen(
                         onClick = {
                             if (!isPrinting) {
                                 isPrinting = true
+                                onPrint()
+                                // Reset after a short delay (feedback comes from caller)
                                 scope.launch {
-                                    try {
-                                        // Instant feedback
-                                        snackbarHostState.showSnackbar(
-                                            message = "Memproses pencetakan...",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        // Small delay for debounce
-                                        delay(300)
-                                        onPrint()
-                                        delay(500) // Give time for print to process
-                                        snackbarHostState.showSnackbar(
-                                            message = "Perintah cetak berhasil dikirim",
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    } catch (e: Exception) {
-                                        snackbarHostState.showSnackbar(
-                                            message = "Gagal mencetak: ${e.message}",
-                                            duration = SnackbarDuration.Long
-                                        )
-                                    } finally {
-                                        // Re-enable immediately after message shown
-                                        isPrinting = false
-                                    }
+                                    delay(1000)
+                                    isPrinting = false
                                 }
                             }
                         },
@@ -311,30 +292,11 @@ fun ReceiptScreen(
                     onClick = {
                         if (!isPrintingQueue) {
                             isPrintingQueue = true
+                            onPrintQueue()
+                            // Reset after a short delay
                             scope.launch {
-                                try {
-                                    // Instant feedback
-                                    snackbarHostState.showSnackbar(
-                                        message = "Memproses nomor antrian...",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                    // Small delay for debounce
-                                    delay(300)
-                                    onPrintQueue()
-                                    delay(500) // Give time for print to process
-                                    snackbarHostState.showSnackbar(
-                                        message = "Nomor antrian berhasil dicetak",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                } catch (e: Exception) {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Gagal mencetak antrian: ${e.message}",
-                                        duration = SnackbarDuration.Long
-                                    )
-                                } finally {
-                                    // Re-enable immediately after message shown
-                                    isPrintingQueue = false
-                                }
+                                delay(1000)
+                                isPrintingQueue = false
                             }
                         }
                     },
