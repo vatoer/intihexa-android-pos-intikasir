@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import id.stargan.intikasir.ui.common.components.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -35,8 +36,8 @@ fun ReceiptScreen(
     paymentMethod: String,
     transactionStatus: TransactionStatus = TransactionStatus.PAID,
     onFinish: () -> Unit,
-    onPrint: () -> Unit,
-    onPrintQueue: () -> Unit,
+    onPrint: (onResult: (Boolean, String) -> Unit) -> Unit,
+    onPrintQueue: (onResult: (Boolean, String) -> Unit) -> Unit,
     onShare: () -> Unit,
     onComplete: () -> Unit,
     onNewTransaction: () -> Unit,
@@ -45,7 +46,7 @@ fun ReceiptScreen(
     val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
     val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
     val currentDate = dateFormat.format(Date())
-    val snackbarHostState = remember { SnackbarHostState() }
+    val notificationState = rememberSubtleNotificationState()
     val scope = rememberCoroutineScope()
     var isPrinting by remember { mutableStateOf(false) }
     var isPrintingQueue by remember { mutableStateOf(false) }
@@ -60,15 +61,15 @@ fun ReceiptScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+            ) {
             // Success indicator
             Column(
                 modifier = Modifier
@@ -215,9 +216,10 @@ fun ReceiptScreen(
                         if (!isCompleted) {
                             onComplete()
                             scope.launch {
-                                snackbarHostState.showSnackbar(
+                                notificationState.show(
                                     message = "Transaksi telah diselesaikan",
-                                    duration = SnackbarDuration.Short
+                                    icon = Icons.Default.CheckCircle,
+                                    type = NotificationType.Success
                                 )
                             }
                         }
@@ -252,11 +254,17 @@ fun ReceiptScreen(
                         onClick = {
                             if (!isPrinting) {
                                 isPrinting = true
-                                onPrint()
-                                // Reset after a short delay (feedback comes from caller)
-                                scope.launch {
-                                    delay(1000)
-                                    isPrinting = false
+                                onPrint { success, message ->
+                                    scope.launch {
+                                        notificationState.show(
+                                            message = message,
+                                            icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
+                                            type = if (success) NotificationType.Success else NotificationType.Error,
+                                            duration = if (success) 2000L else 3000L
+                                        )
+                                        delay(1000)
+                                        isPrinting = false
+                                    }
                                 }
                             }
                         },
@@ -292,11 +300,17 @@ fun ReceiptScreen(
                     onClick = {
                         if (!isPrintingQueue) {
                             isPrintingQueue = true
-                            onPrintQueue()
-                            // Reset after a short delay
-                            scope.launch {
-                                delay(1000)
-                                isPrintingQueue = false
+                            onPrintQueue { success, message ->
+                                scope.launch {
+                                    notificationState.show(
+                                        message = message,
+                                        icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
+                                        type = if (success) NotificationType.Success else NotificationType.Error,
+                                        duration = if (success) 2000L else 3000L
+                                    )
+                                    delay(1000)
+                                    isPrintingQueue = false
+                                }
                             }
                         }
                     },
@@ -345,6 +359,10 @@ fun ReceiptScreen(
             }
 
             Spacer(modifier = Modifier.height(48.dp))
+            }
+
+            // Subtle notification at top - non-intrusive feedback
+            SubtleNotificationHost(state = notificationState)
         }
     }
 }

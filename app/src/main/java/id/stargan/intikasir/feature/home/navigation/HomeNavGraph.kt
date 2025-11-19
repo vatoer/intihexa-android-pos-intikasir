@@ -344,46 +344,61 @@ fun NavGraphBuilder.homeNavGraph(
                     popUpTo(HomeRoutes.HOME) { inclusive = false }
                 }
             },
-            onPrint = {
-                val tx = state.transaction ?: return@ReceiptScreen
+            onPrint = { onResult ->
+                val tx = state.transaction ?: run {
+                    onResult(false, "Data transaksi tidak ditemukan")
+                    return@ReceiptScreen
+                }
                 val items = state.transactionItems
                 val settings = settingsState.settings
 
-                // Use helper function for consistency
-                val result = ReceiptPrinter.printReceiptOrPdf(context, settings, tx, items)
+                scope.launch {
+                    try {
+                        val result = ReceiptPrinter.printReceiptOrPdf(context, settings, tx, items)
 
-                // Show feedback
-                result?.let { printResult ->
-                    when (printResult) {
-                        is ESCPosPrinter.PrintResult.Success -> {
-                            Toast.makeText(context, "Struk berhasil dicetak", Toast.LENGTH_SHORT).show()
+                        // Process result and call callback
+                        result?.let { printResult ->
+                            when (printResult) {
+                                is ESCPosPrinter.PrintResult.Success -> {
+                                    onResult(true, "Struk berhasil dicetak")
+                                }
+                                is ESCPosPrinter.PrintResult.Error -> {
+                                    onResult(false, "Gagal mencetak: ${printResult.message}")
+                                }
+                            }
+                        } ?: run {
+                            onResult(true, "Struk berhasil dibuat")
                         }
-                        is ESCPosPrinter.PrintResult.Error -> {
-                            Toast.makeText(context, "Gagal mencetak: ${printResult.message}", Toast.LENGTH_LONG).show()
-                        }
+                    } catch (e: Exception) {
+                        onResult(false, "Error: ${e.message}")
                     }
-                } ?: run {
-                    Toast.makeText(context, "Struk berhasil dibuat", Toast.LENGTH_SHORT).show()
                 }
             },
-            onPrintQueue = {
-                val tx = state.transaction ?: return@ReceiptScreen
+            onPrintQueue = { onResult ->
+                val tx = state.transaction ?: run {
+                    onResult(false, "Data transaksi tidak ditemukan")
+                    return@ReceiptScreen
+                }
                 val settings = settingsState.settings
-                // Use ESC/POS if available; otherwise fallback to PDF
-                val result = ReceiptPrinter.printQueueOrPdf(
-                    context = context,
-                    settings = settings,
-                    transaction = tx
-                )
-                // Handle result if ESC/POS direct print was used
-                result?.let { printResult ->
-                    when (printResult) {
-                        is ESCPosPrinter.PrintResult.Success -> {
-                            Toast.makeText(context, "Antrian berhasil dicetak", Toast.LENGTH_SHORT).show()
+
+                scope.launch {
+                    try {
+                        val result = ReceiptPrinter.printQueueOrPdf(context, settings, tx)
+
+                        result?.let { printResult ->
+                            when (printResult) {
+                                is ESCPosPrinter.PrintResult.Success -> {
+                                    onResult(true, "Antrian berhasil dicetak")
+                                }
+                                is ESCPosPrinter.PrintResult.Error -> {
+                                    onResult(false, "Gagal mencetak: ${printResult.message}")
+                                }
+                            }
+                        } ?: run {
+                            onResult(true, "Antrian berhasil dibuat")
                         }
-                        is ESCPosPrinter.PrintResult.Error -> {
-                            Toast.makeText(context, "Gagal mencetak antrian: ${printResult.message}", Toast.LENGTH_LONG).show()
-                        }
+                    } catch (e: Exception) {
+                        onResult(false, "Error: ${e.message}")
                     }
                 }
             },
