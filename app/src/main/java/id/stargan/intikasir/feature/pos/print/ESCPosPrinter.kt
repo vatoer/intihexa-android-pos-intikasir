@@ -142,6 +142,8 @@ object ESCPosPrinter {
         if (settings.printLogo) {
             val logoSuccess = ThermalLogoPrinter.printLogo(context, out, settings)
             if (logoSuccess) {
+                // Single line feed after logo for spacing
+                text("", nl = true)
                 Log.d(TAG, "writeReceipt: Logo printed successfully")
             } else {
                 Log.w(TAG, "writeReceipt: Logo printing failed or disabled, continuing without logo")
