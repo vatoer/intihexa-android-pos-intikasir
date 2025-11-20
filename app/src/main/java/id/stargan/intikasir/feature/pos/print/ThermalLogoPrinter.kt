@@ -3,29 +3,34 @@ package id.stargan.intikasir.feature.pos.print
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.util.Log
-import androidx.core.graphics.get
-import androidx.core.graphics.scale
 import id.stargan.intikasir.domain.model.StoreSettings
 import java.io.File
 import java.io.OutputStream
-import kotlin.math.min
+import kotlin.math.ceil
 
 /**
- * Helper untuk mencetak logo pada thermal printer
- * Mengatur ukuran logo: jika lebar kertas = 3a, maka logo = a x a (square, 1/3 dari lebar kertas)
+ * Helper untuk mencetak logo pada thermal printer menggunakan perintah ESC/POS
+ * Updated: Menggunakan Raster Bit Image (GS v 0) dengan metode chunking untuk mencegah buffer overflow.
  */
 object ThermalLogoPrinter {
     private const val TAG = "ThermalLogoPrinter"
 
+    // ESC/POS Commands
+    private val ESC_ALIGN_CENTER = byteArrayOf(0x1B, 0x61, 1)
+    private val ESC_ALIGN_LEFT = byteArrayOf(0x1B, 0x61, 0)
+    private val CMD_GS_v_0 = byteArrayOf(0x1D, 0x76, 0x30, 0x00) // Raster bit image mode normal
+
+    // --- PERUBAHAN DI SINI ---
+    // Ukuran chunk yang lebih kecil untuk printer yang sangat sensitif
+    private const val RASTER_LINE_CHUNK_SIZE = 32 // <-- Diturunkan dari 64 menjadi 32
+    // Jeda waktu antar chunk dalam milidetik untuk memberi "napas" pada printer
+    private const val CHUNK_SLEEP_DELAY_MS = 20L
+
     /**
-     * Print logo to thermal printer via ESC/POS commands
-     * Logo size calculation: if paper width = 3a, then logo = a x a
-     *
-     * @param context Android context
-     * @param out OutputStream to thermal printer
-     * @param settings Store settings containing logo path and paper width
-     * @return true if logo printed successfully, false otherwise
+     * Print logo to thermal printer
+     * (Fungsi printLogo tetap sama, tidak perlu diubah)
      */
     fun printLogo(
         context: Context,
@@ -44,72 +49,22 @@ object ThermalLogoPrinter {
                 return false
             }
 
-            val originalBitmap = BitmapFactory.decodeFile(settings.storeLogo)
-            if (originalBitmap == null) {
+            val originalBitmap = BitmapFactory.decodeFile(settings.storeLogo) ?: run {
                 Log.w(TAG, "Failed to decode logo bitmap")
                 return false
             }
 
-            Log.d(TAG, "Original bitmap size: ${originalBitmap.width}x${originalBitmap.height}")
+            val maxPrinterWidth = if (settings.paperWidthMm >= 80) 576 else 384
+            val targetWidth = (maxPrinterWidth * 0.60).toInt()
 
-            // Calculate logo size based on paper width
-            // Paper width in mm, convert to dots (thermal printers typically 8 dots per mm)
-            val paperWidthMm = settings.paperWidthMm
-            val dotsPerMm = 8 // Standard thermal printer resolution
-            val paperWidthDots = paperWidthMm * dotsPerMm
+            val aspectRatio = originalBitmap.height.toFloat() / originalBitmap.width.toFloat()
+            val targetHeight = (targetWidth * aspectRatio).toInt()
+            val scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, targetWidth, targetHeight, true)
 
-            // Logo should be proportional to paper width
-            // For receipt, logo should be small and neat: ~1/4 to 1/5 of paper width
-            val targetLogoSize = when {
-                paperWidthMm >= 80 -> 96  // ~12mm for 80mm paper (1/5 of width)
-                else -> 64 // ~8mm for 58mm paper (1/5 of width)
-            }
+            Log.d(TAG, "Printing Logo: ${scaledBitmap.width}x${scaledBitmap.height} on paper width $maxPrinterWidth")
 
-            Log.d(TAG, "Paper width: ${paperWidthMm}mm = ${paperWidthDots} dots")
-            Log.d(TAG, "Target logo size: ${targetLogoSize}x${targetLogoSize} dots")
+            printBitmapRaster(out, scaledBitmap)
 
-            // Create square bitmap from original
-            // Find the smaller dimension and crop from center to get square
-            val cropSize = min(originalBitmap.width, originalBitmap.height)
-            val xOffset = (originalBitmap.width - cropSize) / 2
-            val yOffset = (originalBitmap.height - cropSize) / 2
-
-            val squareBitmap = Bitmap.createBitmap(
-                originalBitmap,
-                xOffset,
-                yOffset,
-                cropSize,
-                cropSize
-            )
-
-            Log.d(TAG, "Cropped to square: ${squareBitmap.width}x${squareBitmap.height}")
-
-            // Verify it's actually square
-            if (squareBitmap.width != squareBitmap.height) {
-                Log.e(TAG, "ERROR: Bitmap is not square after cropping!")
-            }
-
-            // Now scale the square bitmap to target size
-            val scaledBitmap = squareBitmap.scale(
-                targetLogoSize,
-                targetLogoSize,
-                filter = true
-            )
-
-            Log.d(TAG, "Scaled bitmap size: ${scaledBitmap.width}x${scaledBitmap.height}")
-
-            // Verify scaled is also square
-            if (scaledBitmap.width != scaledBitmap.height) {
-                Log.e(TAG, "ERROR: Scaled bitmap is not square!")
-            }
-
-            // Print the bitmap centered
-            printBitmapCentered(out, scaledBitmap, paperWidthDots)
-
-            // Cleanup
-            squareBitmap.recycle()
-
-            // Cleanup
             scaledBitmap.recycle()
             originalBitmap.recycle()
 
@@ -123,94 +78,64 @@ object ThermalLogoPrinter {
     }
 
     /**
-     * Print bitmap image centered using ESC/POS commands
-     * Uses 24-dot double-density mode for correct 1:1 aspect ratio
+     * Print bitmap image centered using GS v 0 (Raster Bit Image) dengan metode chunking yang lebih agresif.
      */
-    private fun printBitmapCentered(
-        out: OutputStream,
-        bitmap: Bitmap,
-        paperWidthDots: Int
-    ) {
-        // Convert to monochrome
-        val threshold = 128
-        val dots = Array(bitmap.height) { y ->
-            BooleanArray(bitmap.width) { x ->
-                val pixel = bitmap[x, y]
-                val r = (pixel shr 16) and 0xFF
-                val g = (pixel shr 8) and 0xFF
-                val b = pixel and 0xFF
-                val gray = (r + g + b) / 3
-                gray < threshold // dark pixels become true
-            }
-        }
+    private fun printBitmapRaster(out: OutputStream, bitmap: Bitmap) {
+        try {
+            out.write(ESC_ALIGN_CENTER)
 
-        Log.d(TAG, "Converted to monochrome: ${dots.size} rows x ${dots[0].size} cols")
+            val width = bitmap.width
+            val height = bitmap.height
+            val widthBytes = ceil(width.toDouble() / 8).toInt()
 
-        // Calculate left margin for centering (in dots, then convert to mm for left margin command)
-        val leftMarginDots = ((paperWidthDots - bitmap.width) / 2).coerceAtLeast(0)
-        val leftMarginMm = (leftMarginDots / 8).coerceAtLeast(0) // 8 dots per mm
+            var currentY = 0
+            while (currentY < height) {
+                val chunkHeight = (height - currentY).coerceAtMost(RASTER_LINE_CHUNK_SIZE)
 
-        Log.d(TAG, "Paper width: $paperWidthDots dots")
-        Log.d(TAG, "Bitmap width: ${bitmap.width} dots")
-        Log.d(TAG, "Left margin: $leftMarginDots dots (~${leftMarginMm}mm)")
+                out.write(CMD_GS_v_0)
+                out.write(widthBytes % 256)
+                out.write(widthBytes / 256)
+                out.write(chunkHeight % 256)
+                out.write(chunkHeight / 256)
 
-        // Set left margin for centering
-        if (leftMarginMm > 0) {
-            // GS L nL nH - Set left margin
-            val nL = (leftMarginMm and 0xFF).toByte()
-            val nH = ((leftMarginMm shr 8) and 0xFF).toByte()
-            out.write(byteArrayOf(0x1D, 0x4C, nL, nH))
-        }
+                val data = ByteArray(widthBytes * chunkHeight)
+                var k = 0
+                for (y in currentY until currentY + chunkHeight) {
+                    for (xByte in 0 until widthBytes) {
+                        var byteValue = 0
+                        for (bit in 0 until 8) {
+                            val currentX = xByte * 8 + bit
+                            if (currentX < width) {
+                                val pixel = bitmap.getPixel(currentX, y)
+                                val r = Color.red(pixel)
+                                val g = Color.green(pixel)
+                                val b = Color.blue(pixel)
+                                val luminance = (0.299 * r + 0.587 * g + 0.114 * b)
 
-        // Print using ESC * command in 24-dot double-density mode for correct aspect ratio
-        // Process in strips of 24 dots height (3 bytes per column)
-        var y = 0
-        while (y < dots.size) {
-            val stripHeight = min(24, dots.size - y)
-
-            // ESC * m nL nH d1...dk
-            // m = 33 (24-dot double-density, 200x200 DPI) - gives 1:1 aspect ratio
-            val nL = (bitmap.width and 0xFF).toByte()
-            val nH = ((bitmap.width shr 8) and 0xFF).toByte()
-
-            out.write(byteArrayOf(0x1B, 0x2A, 33, nL, nH))
-
-            // Send bitmap data column by column
-            for (x in 0 until bitmap.width) {
-                // Each column is 3 bytes for 24 dots
-                val bytes = ByteArray(3)
-                for (k in 0 until stripHeight) {
-                    val dotY = y + k
-                    if (dotY < dots.size && x < dots[dotY].size && dots[dotY][x]) {
-                        val byteIndex = k / 8
-                        val bitIndex = 7 - (k % 8)
-                        bytes[byteIndex] = (bytes[byteIndex].toInt() or (1 shl bitIndex)).toByte()
+                                if (Color.alpha(pixel) > 50 && luminance < 128) {
+                                    byteValue = byteValue or (1 shl (7 - bit))
+                                }
+                            }
+                        }
+                        data[k++] = byteValue.toByte()
                     }
                 }
-                out.write(bytes)
+
+                out.write(data)
+                out.flush()
+
+                // --- PERUBAHAN DI SINI ---
+                // Tambahkan jeda singkat antar chunk
+                Thread.sleep(CHUNK_SLEEP_DELAY_MS)
+
+                currentY += chunkHeight
             }
 
-            // Line feed - move to next strip
-            out.write(byteArrayOf(0x0A))
-            y += 24
+            out.write(ESC_ALIGN_LEFT)
+            out.flush()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error inside printBitmapRaster", e)
         }
-
-        // Reset left margin to 0
-        out.write(byteArrayOf(0x1D, 0x4C, 0x00, 0x00))
-
-        // NO extra line feed - let ESCPosPrinter handle spacing
-
-        // Flush output to ensure all data is sent
-        out.flush()
-
-        // Small delay to let printer process the bitmap
-        try {
-            Thread.sleep(50)
-        } catch (e: InterruptedException) {
-            Log.w(TAG, "Sleep interrupted", e)
-        }
-
-        Log.d(TAG, "Bitmap printed, total strips: ${(bitmap.height + 23) / 24}")
     }
 }
-
