@@ -35,7 +35,8 @@ import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
-import id.stargan.intikasir.util.ShareUtils
+import id.stargan.intikasir.feature.pos.print.ReceiptImageGenerator
+import id.stargan.intikasir.feature.history.ui.screens.HistoryScreen
 import id.stargan.intikasir.feature.history.ui.screens.HistoryScreen
 import id.stargan.intikasir.feature.history.ui.components.HistoryDetailScreen
 import id.stargan.intikasir.feature.expense.ui.ExpenseListScreen
@@ -181,8 +182,26 @@ fun NavGraphBuilder.homeNavGraph(
                     posVm.loadTransactionBlocking(txId)
                     val items = posVm.uiState.value.transactionItems
                     val settings = settingsState.settings
-                    val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
-                    ShareUtils.shareUri(context, result.pdfUri, "application/pdf", "Bagikan Struk")
+
+                    if (settings == null) {
+                        Toast.makeText(context, "Pengaturan toko belum tersedia", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+
+                    try {
+                        // Generate receipt as PNG image (thermal style)
+                        val result = ReceiptImageGenerator.generateReceiptImage(
+                            context = context,
+                            settings = settings,
+                            transaction = tx,
+                            items = items
+                        )
+
+                        // Share the image
+                        ReceiptImageGenerator.shareImage(context, result.imageUri)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Gagal membuat gambar struk: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onDelete = { tx ->
@@ -421,13 +440,28 @@ fun NavGraphBuilder.homeNavGraph(
                 val tx = state.transaction ?: return@ReceiptScreen
                 val items = state.transactionItems
                 val settings = settingsState.settings
-                val result = ReceiptPrinter.generateThermalReceiptPdf(
-                    context = context,
-                    settings = settings,
-                    transaction = tx,
-                    items = items
-                )
-                ShareUtils.shareUri(context, result.pdfUri, "application/pdf", "Bagikan Struk")
+
+                if (settings == null) {
+                    Toast.makeText(context, "Pengaturan toko belum tersedia", Toast.LENGTH_SHORT).show()
+                    return@ReceiptScreen
+                }
+
+                scope.launch {
+                    try {
+                        // Generate receipt as PNG image (thermal style)
+                        val result = ReceiptImageGenerator.generateReceiptImage(
+                            context = context,
+                            settings = settings,
+                            transaction = tx,
+                            items = items
+                        )
+
+                        // Share the image
+                        ReceiptImageGenerator.shareImage(context, result.imageUri)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Gagal membuat gambar struk: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
             onComplete = {
                 scope.launch {
