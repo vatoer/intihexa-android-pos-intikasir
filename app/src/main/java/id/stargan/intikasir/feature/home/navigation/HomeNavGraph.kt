@@ -35,6 +35,7 @@ import id.stargan.intikasir.feature.pos.ui.receipt.ReceiptScreen
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
 import id.stargan.intikasir.feature.pos.print.ReceiptPrinter
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
+import id.stargan.intikasir.util.ShareUtils
 import id.stargan.intikasir.feature.history.ui.screens.HistoryScreen
 import id.stargan.intikasir.feature.history.ui.components.HistoryDetailScreen
 import id.stargan.intikasir.feature.expense.ui.ExpenseListScreen
@@ -164,6 +165,9 @@ fun NavGraphBuilder.homeNavGraph(
                             is ESCPosPrinter.PrintResult.Error -> {
                                 Toast.makeText(context, "Gagal mencetak: ${printResult.message}", Toast.LENGTH_LONG).show()
                             }
+//                            else -> {
+//                                Toast.makeText(context, "Hasil cetak tidak diketahui", Toast.LENGTH_SHORT).show()
+//                            }
                         }
                     } ?: run {
                         // PDF generated (no ESC/POS result)
@@ -177,7 +181,7 @@ fun NavGraphBuilder.homeNavGraph(
                     val items = posVm.uiState.value.transactionItems
                     val settings = settingsState.settings
                     val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
-                    ReceiptPrinter.sharePdf(context, result.pdfUri)
+                    ShareUtils.shareUri(context, result.pdfUri, "application/pdf", "Bagikan Struk")
                 }
             },
             onDelete = { tx ->
@@ -201,6 +205,9 @@ fun NavGraphBuilder.homeNavGraph(
                         }
                         is ESCPosPrinter.PrintResult.Error -> {
                             Toast.makeText(context, "Gagal mencetak antrian: ${printResult.message}", Toast.LENGTH_LONG).show()
+                        }
+                        else -> {
+                            Toast.makeText(context, "Hasil cetak antrian tidak diketahui", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -366,6 +373,9 @@ fun NavGraphBuilder.homeNavGraph(
                                 is ESCPosPrinter.PrintResult.Error -> {
                                     onResult(false, "Gagal mencetak: ${printResult.message}")
                                 }
+                                else -> {
+                                    onResult(false, "Hasil cetak tidak diketahui")
+                                }
                             }
                         } ?: run {
                             onResult(true, "Struk berhasil dibuat")
@@ -394,6 +404,9 @@ fun NavGraphBuilder.homeNavGraph(
                                 is ESCPosPrinter.PrintResult.Error -> {
                                     onResult(false, "Gagal mencetak: ${printResult.message}")
                                 }
+                                else -> {
+                                    onResult(false, "Hasil cetak antrian tidak diketahui")
+                                }
                             }
                         } ?: run {
                             onResult(true, "Antrian berhasil dibuat")
@@ -413,7 +426,7 @@ fun NavGraphBuilder.homeNavGraph(
                     transaction = tx,
                     items = items
                 )
-                ReceiptPrinter.sharePdf(context, result.pdfUri)
+                ShareUtils.shareUri(context, result.pdfUri, "application/pdf", "Bagikan Struk")
             },
             onComplete = {
                 scope.launch {

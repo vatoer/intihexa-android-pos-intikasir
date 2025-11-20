@@ -62,7 +62,8 @@ fun StoreSettingsScreen(
     }
 
     fun launchCrop(input: Uri) {
-        val dest = Uri.fromFile(File(context.cacheDir, "logo_crop_${System.currentTimeMillis()}.jpg"))
+        val destFile = File(context.cacheDir, "logo_crop_${System.currentTimeMillis()}.jpg")
+        val dest = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", destFile)
         val options = UCrop.Options().apply {
             // Quality & behavior
             setCompressionQuality(85)
@@ -100,6 +101,8 @@ fun StoreSettingsScreen(
             .withMaxResultSize(512, 512)
             .withOptions(options)
             .getIntent(context)
+        // Grant URI permissions for UCrop to read/write the provided URIs
+        intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         cropLauncher.launch(intent)
     }
 
@@ -495,7 +498,9 @@ fun StoreSettingsScreen(
                                         context.startActivity(intent)
                                     } else {
                                         // Fallback: share chooser
-                                        ReceiptPrinter.sharePdf(context, contentUri)
+                                        val result = ReceiptPrinter.generateThermalReceiptPdf(context, effective, tx, items)
+                                        // Use ShareUtils to share safely
+                                        id.stargan.intikasir.util.ShareUtils.shareUri(context, result.pdfUri, "application/pdf", "Bagikan Struk")
                                     }
                                 } catch (e: Exception) {
                                     // Ignore preview errors for now

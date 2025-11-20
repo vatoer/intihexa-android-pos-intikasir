@@ -54,7 +54,8 @@ fun ProductFormScreen(
     }
 
     fun launchCrop(input: Uri) {
-        val dest = Uri.fromFile(File(context.cacheDir, "crop_${System.currentTimeMillis()}.jpg"))
+        val destFile = File(context.cacheDir, "crop_${System.currentTimeMillis()}.jpg")
+        val dest = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", destFile)
         val options = UCrop.Options().apply {
             // Quality & behavior
             setCompressionQuality(85)
@@ -95,6 +96,7 @@ fun ProductFormScreen(
             .withMaxResultSize(1080, 1080)
             .withOptions(options)
             .getIntent(context)
+        intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         cropLauncher.launch(intent)
     }
 

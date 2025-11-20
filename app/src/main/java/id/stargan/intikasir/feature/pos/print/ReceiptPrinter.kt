@@ -17,6 +17,7 @@ import android.print.PrintDocumentInfo
 import android.print.PageRange
 import android.print.PrintManager
 import androidx.core.net.toUri
+import androidx.core.content.FileProvider
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
@@ -326,7 +327,9 @@ object ReceiptPrinter {
         val file = File(context.cacheDir, fileName)
         FileOutputStream(file).use { out -> doc.writeTo(out) }
         doc.close()
-        return Result(file.toUri(), fileName)
+        // Return a content:// URI via FileProvider (avoid file:// exposure)
+        val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        return Result(contentUri, fileName)
     }
 
     fun generateThermalReceiptPdf(
@@ -595,7 +598,8 @@ object ReceiptPrinter {
         val file = File(context.cacheDir, fileName)
         FileOutputStream(file).use { out -> doc.writeTo(out) }
         doc.close()
-        return Result(file.toUri(), fileName)
+        val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        return Result(contentUri, fileName)
     }
 
     /**
@@ -729,15 +733,57 @@ object ReceiptPrinter {
     }
 
     fun sharePdf(context: Context, pdfUri: Uri) {
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(android.content.Intent.EXTRA_STREAM, pdfUri)
-            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            // Convert file:// URIs to content:// via FileProvider and validate
+            val shareUri = when (pdfUri.scheme) {
+                "file" -> {
+                    val file = File(pdfUri.path ?: "")
+                    if (!file.exists()) {
+                        Toast.makeText(context, "File struk tidak ditemukan", Toast.LENGTH_SHORT).show()
+                        Log.w("ReceiptPrinter", "sharePdf: file not found=$pdfUri")
+                        return
+                    }
+                    androidx.core.content.FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file
+                    )
+                }
+                else -> pdfUri
+            }
+
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
+                // Provide ClipData which some apps require to read the stream
+                clipData = android.content.ClipData.newUri(context.contentResolver, "Struk", shareUri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val chooser = android.content.Intent.createChooser(intent, "Bagikan Struk")
+
+            // Explicitly grant URI permission to resolved activities (defensive)
+            val resInfos = context.packageManager.queryIntentActivities(chooser, 0)
+            resInfos.forEach { resolveInfo ->
+                try {
+                    context.grantUriPermission(
+                        resolveInfo.activityInfo.packageName,
+                        shareUri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (e: Exception) {
+                    // ignore individual grant failures but log them
+                    Log.w("ReceiptPrinter", "Failed to grant uri permission to ${resolveInfo.activityInfo.packageName}", e)
+                }
+            }
+
+            context.startActivity(
+                chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+            Log.w("ReceiptPrinter", "sharePdf failed: ${e.message}", e)
+            Toast.makeText(context, "Gagal membagikan struk", Toast.LENGTH_SHORT).show()
         }
-        context.startActivity(
-            android.content.Intent.createChooser(intent, "Bagikan Struk")
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
     }
 
     private fun drawCenteredText(canvas: Canvas, text: String, cx: Float, y: Float, paint: Paint) {
