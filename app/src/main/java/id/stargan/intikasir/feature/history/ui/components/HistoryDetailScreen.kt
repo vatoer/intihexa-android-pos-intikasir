@@ -262,7 +262,7 @@ fun HistoryDetailScreen(
                                 printing = true
                                 onPrint(tx)
                                 scope.launch {
-                                    kotlinx.coroutines.delay(800)
+                                    kotlinx.coroutines.delay(200)
                                     printing = false
                                 }
                             }

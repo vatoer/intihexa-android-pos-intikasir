@@ -64,7 +64,7 @@ fun NavGraphBuilder.homeNavGraph(
         // Force logout if no current user (e.g., after reinstall) after a short grace
         LaunchedEffect(userState.value) {
             if (userState.value == null) {
-                kotlinx.coroutines.delay(400)
+                kotlinx.coroutines.delay(200)
                 if (homeVm.currentUser.value == null) {
                     android.widget.Toast.makeText(context, "Sesi berakhir, silakan login lagi", android.widget.Toast.LENGTH_SHORT).show()
                     onLogout()

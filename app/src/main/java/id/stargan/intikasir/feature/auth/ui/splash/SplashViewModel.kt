@@ -42,7 +42,7 @@ class SplashViewModel @Inject constructor(
                 initializeDefaultUsersUseCase()
 
                 // Minimum splash screen duration
-                delay(1500)
+                delay(400)
 
                 // Check authentication status
                 checkAuthStatusUseCase().collect { isLoggedIn ->

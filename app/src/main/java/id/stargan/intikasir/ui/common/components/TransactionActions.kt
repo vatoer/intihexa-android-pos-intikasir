@@ -65,7 +65,7 @@ fun TransactionActions(
                         onPrint()
                         // Reset after a short delay (feedback should come from onPrint itself)
                         scope.launch {
-                            delay(1000)
+                            delay(200)
                             printing = false
                         }
                     },
@@ -107,7 +107,7 @@ fun TransactionActions(
                         onPrintQueue()
                         // Reset after a short delay
                         scope.launch {
-                            delay(1000)
+                            delay(200)
                             printingQueue = false
                         }
                     },

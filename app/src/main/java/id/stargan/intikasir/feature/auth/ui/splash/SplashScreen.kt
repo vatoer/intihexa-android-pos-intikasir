@@ -30,7 +30,7 @@ fun SplashScreen(
     // Handle navigation based on auth status
     LaunchedEffect(uiState.authCheckComplete) {
         if (uiState.authCheckComplete) {
-            delay(500) // Small delay for smooth transition
+            delay(400) // Small delay for smooth transition
             if (uiState.isLoggedIn) {
                 onNavigateToHome()
             } else {

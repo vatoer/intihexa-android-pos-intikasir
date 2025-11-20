@@ -260,9 +260,9 @@ fun ReceiptScreen(
                                             message = message,
                                             icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
                                             type = if (success) NotificationType.Success else NotificationType.Error,
-                                            duration = if (success) 2000L else 3000L
+                                            duration = if (success) 1000L else 2000L
                                         )
-                                        delay(1000)
+                                        delay(100)
                                         isPrinting = false
                                     }
                                 }
@@ -308,7 +308,7 @@ fun ReceiptScreen(
                                         type = if (success) NotificationType.Success else NotificationType.Error,
                                         duration = if (success) 2000L else 3000L
                                     )
-                                    delay(1000)
+                                    delay(100)
                                     isPrintingQueue = false
                                 }
                             }
