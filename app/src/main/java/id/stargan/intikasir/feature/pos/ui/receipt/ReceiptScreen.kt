@@ -1,26 +1,23 @@
 package id.stargan.intikasir.feature.pos.ui.receipt
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import id.stargan.intikasir.feature.pos.ui.receipt.components.ReceiptSuccessHeader
 import id.stargan.intikasir.ui.common.components.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 /**
@@ -45,13 +42,12 @@ fun ReceiptScreen(
     modifier: Modifier = Modifier
 ) {
     val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
-    val currentDate = dateFormat.format(Date())
     val notificationState = rememberSubtleNotificationState()
     val scope = rememberCoroutineScope()
     var isPrinting by remember { mutableStateOf(false) }
     var isPrintingQueue by remember { mutableStateOf(false) }
-    val isCompleted = transactionStatus == TransactionStatus.COMPLETED
+    var currentStatus by remember { mutableStateOf(transactionStatus) }
+    val isCompleted = currentStatus == TransactionStatus.COMPLETED
 
     Scaffold(
         topBar = {
@@ -71,91 +67,12 @@ fun ReceiptScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
-            // Success indicator
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    "Pembayaran Berhasil!",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    transactionNumber,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Status badge
-                if (isCompleted) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Text(
-                                "Selesai",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Payment,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Text(
-                                "Sudah Dibayar",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                Text(
-                    currentDate,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // Compact Success Header - icon left, info right
+            ReceiptSuccessHeader(
+                transactionNumber = transactionNumber,
+                transactionStatus = currentStatus,
+                modifier = Modifier.padding(16.dp)
+            )
 
             // Receipt details
             Card(
@@ -226,6 +143,8 @@ fun ReceiptScreen(
                     onClick = {
                         if (!isCompleted) {
                             onComplete()
+                            // Update local status immediately for UI feedback
+                            currentStatus = TransactionStatus.COMPLETED
                             scope.launch {
                                 notificationState.show(
                                     message = "Transaksi telah diselesaikan",
