@@ -63,14 +63,14 @@ class DatabaseCallback(
                 INSERT INTO users (id, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
                 VALUES (?, ?, ?, ?, 1, ?, ?, 0)
                 """.trimIndent(),
-                arrayOf(UUID.randomUUID().toString(), "Admin", adminPin, "ADMIN", timestamp, timestamp)
+                arrayOf<Any>(UUID.randomUUID().toString(), "Admin", adminPin, "ADMIN", timestamp, timestamp)
             )
             db.execSQL(
                 """
                 INSERT INTO users (id, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
                 VALUES (?, ?, ?, ?, 1, ?, ?, 0)
                 """.trimIndent(),
-                arrayOf(UUID.randomUUID().toString(), "Kasir", cashierPin, "CASHIER", timestamp, timestamp)
+                arrayOf<Any>(UUID.randomUUID().toString(), "Kasir", cashierPin, "CASHIER", timestamp, timestamp)
             )
         }
 
@@ -98,7 +98,7 @@ class DatabaseCallback(
                     ?, ?, NULL
                 )
                 """.trimIndent(),
-                arrayOf(timestamp, timestamp)
+                arrayOf<Any>(timestamp, timestamp)
             )
         }
 
@@ -119,7 +119,7 @@ class DatabaseCallback(
                     INSERT INTO categories (id, name, description, color, icon, 'order', isActive, createdAt, updatedAt, isDeleted)
                     VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, 0)
                     """.trimIndent(),
-                    arrayOf(category.id, category.name, category.description, category.color, category.icon, category.createdAt, category.updatedAt)
+                    arrayOf<Any?>(category.id, category.name, category.description, category.color, category.icon, category.createdAt, category.updatedAt)
                 )
             }
         }
@@ -152,7 +152,7 @@ class DatabaseCallback(
                         isActive, createdAt, updatedAt, isDeleted
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)
                     """.trimIndent(),
-                    arrayOf(
+                    arrayOf<Any?>(
                         product.id,
                         product.name,
                         product.description,

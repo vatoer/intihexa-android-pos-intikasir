@@ -1,0 +1,148 @@
+# Detekt configuration for IntiKasir
+# Focus: maintainability, readability, reduced noise for Jetpack Compose
+# Docs: https://detekt.dev/docs/introduction/configurations
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+  weights:
+    # Increase weight for complexity, lower for formatting (ktlint handles style)
+    complexity: 2
+    formatting: 0.5
+    style: 1
+    potential_bugs: 2
+    performance: 1
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+processors:
+  active: true
+  exclude:
+    - 'DetektProgressListener'
+
+console-reports:
+  active: true
+  exclude:
+    - 'ComplexityReport'
+    - 'NotificationReport'
+    - 'FindingsReport'
+  include:
+    - 'LiteFindingsReport'
+
+output-reports:
+  active: true
+  reports:
+    - 'txt'
+    - 'html'
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: [0,1,2,10,100]
+    ignorePropertyDeclaration: true
+    ignoreLocalVariableDeclaration: true
+    ignoreAnnotation: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+    excludePackageStatements: true
+    excludeImportStatements: true
+  WildcardImport:
+    active: true
+  UnusedImports:
+    active: true
+  OptionalUnit:
+    active: true
+  CollapsibleIfStatements:
+    active: true
+  DataClassContainsFunctions:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: true
+
+naming:
+  active: true
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  VariableNaming:
+    active: true
+  TopLevelPropertyNaming:
+    active: true
+  PackageNaming:
+    active: true
+  ClassNaming:
+    active: true
+
+complexity:
+  CyclomaticComplexity:
+    active: true
+    threshold: 15
+    ignoreSingleWhenExpression: true
+    ignoreSimpleFunctions: true
+  CognitiveComplexity:
+    active: true
+    threshold: 25
+  LargeClass:
+    active: true
+    threshold: 400
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+    constructorThreshold: 10
+    ignoreDefaultParameters: true
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 30
+    thresholdInClasses: 30
+
+formatting:
+  active: true
+  android: true
+  indentation:
+    active: true
+    autoCorrect: true
+  importOrdering:
+    active: true
+    autoCorrect: true
+  finalNewline:
+    active: true
+    autoCorrect: true
+  noWildcardImports:
+    active: false # already handled by style.WildcardImport
+  maximumLineLength:
+    active: false # use style.MaxLineLength
+
+potential-bugs:
+  DuplicateCaseInWhenExpression:
+    active: true
+  EqualsOnSignatureLine:
+    active: true
+  ExplicitGarbageCollectionCall:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+
+performance:
+  ForEachOnRange:
+    active: true
+  SpreadOperator:
+    active: true
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+
+# Disable rules noisy for Compose previews
+empty-blocks:
+  active: true
+  EmptyFunctionBlock:
+    active: true
+  EmptyClassBlock:
+    active: true
+  EmptyDefaultConstructor:
+    active: true

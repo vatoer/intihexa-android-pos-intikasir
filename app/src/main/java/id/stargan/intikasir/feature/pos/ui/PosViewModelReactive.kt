@@ -9,15 +9,16 @@ import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.feature.settings.domain.usecase.GetStoreSettingsUseCase
 import id.stargan.intikasir.feature.pos.domain.TransactionRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * PosViewModel - Reactive Transaction Based
+ * PosViewModel - In-Memory First Transaction Handling
  *
- * Menggunakan database sebagai single source of truth
- * Setiap perubahan cart langsung disimpan ke database
+ * Perubahan cart disimpan di memori terlebih dahulu (state). Persist ke database hanya saat
+ * navigasi (Cart / Pembayaran / Back) atau auto-save periode. Mengurangi flicker & I/O.
  */
 @HiltViewModel
 class PosViewModelReactive @Inject constructor(
@@ -49,20 +50,42 @@ class PosViewModelReactive @Inject constructor(
         // UI state
         val isSaving: Boolean = false,
         val successMessage: String? = null,
-        val errorMessage: String? = null
+        val errorMessage: String? = null,
+
+        // Unsaved changes flag
+        val hasUnsavedChanges: Boolean = false
     ) {
         val totalQuantity: Int get() = transactionItems.sumOf { it.quantity }
         val hasItems: Boolean get() = transactionItems.isNotEmpty()
         val paymentMethod: PaymentMethod get() = transaction?.paymentMethod ?: PaymentMethod.CASH
         val globalDiscount: Double get() = transaction?.discount ?: 0.0
+        val itemDiscountTotal: Double get() = transactionItems.sumOf { it.discount }
+        val grossSubtotal: Double get() = transactionItems.sumOf { it.unitPrice * it.quantity }
     }
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    private var autoSaveJob: Job? = null
+
     init {
         loadProducts()
         loadTaxFromSettings()
+        startAutoSave()
+    }
+
+    private fun recalcTotals(state: UiState = _uiState.value): UiState {
+        val gross = state.grossSubtotal
+        val itemDiscount = state.itemDiscountTotal
+        val netSubtotal = gross - itemDiscount
+        val taxAmount = netSubtotal * state.taxRate
+        val globalDiscount = state.globalDiscount
+        val total = netSubtotal + taxAmount - globalDiscount
+        return state.copy(
+            subtotal = netSubtotal,
+            tax = taxAmount,
+            total = total
+        )
     }
 
     /**
@@ -78,16 +101,22 @@ class PosViewModelReactive @Inject constructor(
                 val transactionId = transactionRepository.createEmptyDraft(cashierId, cashierName)
 
                 // Load the transaction and start observing
-                loadTransaction(transactionId)
-
-                _uiState.update { it.copy(isSaving = false) }
-            } catch (e: Exception) {
+                val transaction = transactionRepository.getTransactionById(transactionId).first()
+                val items = transactionRepository.getTransactionItems(transactionId).first()
                 _uiState.update {
-                    it.copy(
-                        isSaving = false,
-                        errorMessage = "Gagal membuat transaksi: ${e.message}"
+                    recalcTotals(
+                        it.copy(
+                            transactionId = transactionId,
+                            transaction = transaction,
+                            transactionItems = items,
+                            isSaving = false,
+                            isLoading = false,
+                            hasUnsavedChanges = false
+                        )
                     )
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSaving = false, errorMessage = "Gagal membuat transaksi: ${e.message}") }
             }
         }
     }
@@ -101,37 +130,21 @@ class PosViewModelReactive @Inject constructor(
             try {
                 _uiState.update { it.copy(transactionId = transactionId, isLoading = true) }
 
-                // Observe transaction changes
-                transactionRepository.getTransactionById(transactionId)
-                    .combine(transactionRepository.getTransactionItems(transactionId)) { transaction, items ->
-                        Pair(transaction, items)
-                    }
-                    .collect { (transaction, items) ->
-                        if (transaction != null) {
-                            val subtotal = items.sumOf { it.subtotal }
-                            val tax = subtotal * _uiState.value.taxRate
-                            val discount = transaction.discount
-                            val total = subtotal + tax - discount
-
-                            _uiState.update {
-                                it.copy(
-                                    transaction = transaction,
-                                    transactionItems = items,
-                                    subtotal = subtotal,
-                                    tax = tax,
-                                    total = total,
-                                    isLoading = false
-                                )
-                            }
-                        }
-                    }
-            } catch (e: Exception) {
+                val transaction = transactionRepository.getTransactionById(transactionId).first()
+                val items = transactionRepository.getTransactionItems(transactionId).first()
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Gagal memuat transaksi: ${e.message}"
+                    recalcTotals(
+                        it.copy(
+                            transactionId = transactionId,
+                            transaction = transaction,
+                            transactionItems = items,
+                            isLoading = false,
+                            hasUnsavedChanges = false
+                        )
                     )
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Gagal memuat transaksi: ${e.message}") }
             }
         }
     }
@@ -141,43 +154,40 @@ class PosViewModelReactive @Inject constructor(
      * Auto-save to database
      */
     fun addOrIncrement(productId: String) {
-        val transactionId = _uiState.value.transactionId ?: return
+        val current = _uiState.value
+        val product = current.products.find { it.id == productId } ?: return
+        val existingItem = current.transactionItems.find { it.productId == productId }
+        val newQty = (existingItem?.quantity ?: 0) + 1
+        if (newQty > product.stock) return
 
-        viewModelScope.launch {
-            try {
-                val currentItems = _uiState.value.transactionItems
-                val existingItem = currentItems.find { it.productId == productId }
-                val product = _uiState.value.products.find { it.id == productId } ?: return@launch
-
-                val newQty = (existingItem?.quantity ?: 0) + 1
-                if (newQty > product.stock) return@launch // Exceed stock
-
-                // Update items map
-                val updatedItems = if (existingItem != null) {
-                    currentItems.map {
-                        if (it.productId == productId) it.copy(quantity = newQty)
-                        else it
-                    }
-                } else {
-                    currentItems + TransactionItemEntity(
-                        transactionId = transactionId,
-                        productId = productId,
-                        productName = product.name,
-                        productPrice = product.price,
-                        productSku = product.sku,
+        val updatedItems = if (existingItem != null) {
+            current.transactionItems.map {
+                if (it.productId == productId) {
+                    // keep per-unit discount the same
+                    val perUnitDiscount = if (it.quantity > 0) it.discount / it.quantity else 0.0
+                    val newTotalDiscount = perUnitDiscount * newQty
+                    it.copy(
                         quantity = newQty,
-                        unitPrice = product.price,
-                        discount = 0.0,
-                        subtotal = product.price * newQty
+                        discount = newTotalDiscount,
+                        subtotal = (product.price * newQty) - newTotalDiscount
                     )
-                }
-
-                // Save to database
-                saveCartToDatabase(transactionId, updatedItems)
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal menambah produk: ${e.message}") }
+                } else it
             }
+        } else {
+            current.transactionItems + TransactionItemEntity(
+                transactionId = current.transactionId!!,
+                productId = productId,
+                productName = product.name,
+                productPrice = product.price,
+                productSku = product.sku,
+                quantity = newQty,
+                unitPrice = product.price,
+                discount = 0.0,
+                subtotal = product.price * newQty
+            )
         }
+
+        _uiState.update { recalcTotals(it.copy(transactionItems = updatedItems, hasUnsavedChanges = true)) }
     }
 
     /**
@@ -185,104 +195,72 @@ class PosViewModelReactive @Inject constructor(
      * Auto-save to database
      */
     fun setQuantity(productId: String, quantity: Int) {
-        val transactionId = _uiState.value.transactionId ?: return
+        val current = _uiState.value
+        val product = current.products.find { it.id == productId } ?: return
+        if (quantity > product.stock) return
 
-        viewModelScope.launch {
-            try {
-                val currentItems = _uiState.value.transactionItems
-                val product = _uiState.value.products.find { it.id == productId } ?: return@launch
-
-                if (quantity > product.stock) return@launch
-
-                val updatedItems = if (quantity == 0) {
-                    currentItems.filter { it.productId != productId }
-                } else {
-                    currentItems.map { item ->
-                        if (item.productId == productId) {
-                            // Clamp discount so it never exceeds max price * qty
-                            val maxDiscount = product.price * quantity
-                            val safeDiscount = item.discount.coerceIn(0.0, maxDiscount)
-                            item.copy(
-                                quantity = quantity,
-                                discount = safeDiscount,
-                                subtotal = (product.price * quantity) - safeDiscount
-                            )
-                        } else item
-                    }
-                }
-
-                saveCartToDatabase(transactionId, updatedItems)
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal mengubah jumlah: ${e.message}") }
+        val updatedItems = if (quantity == 0) {
+            current.transactionItems.filter { it.productId != productId }
+        } else {
+            current.transactionItems.map { item ->
+                if (item.productId == productId) {
+                    val perUnitDiscount = if (item.quantity > 0) item.discount / item.quantity else 0.0
+                    val maxPerUnitDiscount = product.price
+                    val safePerUnitDiscount = perUnitDiscount.coerceIn(0.0, maxPerUnitDiscount)
+                    val newTotalDiscount = safePerUnitDiscount * quantity
+                    item.copy(
+                        quantity = quantity,
+                        discount = newTotalDiscount,
+                        subtotal = (product.price * quantity) - newTotalDiscount
+                    )
+                } else item
             }
         }
+
+        _uiState.update { recalcTotals(it.copy(transactionItems = updatedItems, hasUnsavedChanges = true)) }
     }
 
     /**
      * Set item discount
      * Auto-save to database
      */
-    fun setItemDiscount(productId: String, discountAmount: Double) {
-        val transactionId = _uiState.value.transactionId ?: return
+    fun setItemDiscount(productId: String, discountPerUnit: Double) {
+        val current = _uiState.value
+        val item = current.transactionItems.find { it.productId == productId } ?: return
+        val product = current.products.find { it.id == productId } ?: return
 
-        viewModelScope.launch {
-            try {
-                val currentItems = _uiState.value.transactionItems
-                val item = currentItems.find { it.productId == productId } ?: return@launch
-                val product = _uiState.value.products.find { it.id == productId } ?: return@launch
+        val maxPerUnitDiscount = product.price
+        val safePerUnitDiscount = discountPerUnit.coerceIn(0.0, maxPerUnitDiscount)
+        val newTotalDiscount = safePerUnitDiscount * item.quantity
 
-                val maxDiscount = product.price * item.quantity
-                val safeDiscount = discountAmount.coerceIn(0.0, maxDiscount)
-
-                val updatedItems = currentItems.map {
-                    if (it.productId == productId) {
-                        it.copy(
-                            discount = safeDiscount,
-                            subtotal = (product.price * it.quantity) - safeDiscount
-                        )
-                    } else it
-                }
-
-                saveCartToDatabase(transactionId, updatedItems)
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal mengatur diskon: ${e.message}") }
-            }
+        val updatedItems = current.transactionItems.map {
+            if (it.productId == productId) {
+                it.copy(
+                    discount = newTotalDiscount,
+                    subtotal = (product.price * it.quantity) - newTotalDiscount
+                )
+            } else it
         }
+
+        _uiState.update { recalcTotals(it.copy(transactionItems = updatedItems, hasUnsavedChanges = true)) }
     }
 
     /**
      * Clear entire cart
      */
     fun clearCart() {
-        val transactionId = _uiState.value.transactionId ?: return
-
-        viewModelScope.launch {
-            try {
-                saveCartToDatabase(transactionId, emptyList())
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal mengosongkan keranjang: ${e.message}") }
-            }
-        }
+        if (_uiState.value.transactionId == null) return
+        _uiState.update { recalcTotals(it.copy(transactionItems = emptyList(), hasUnsavedChanges = true)) }
     }
 
     /**
      * Set global discount
      */
     fun setGlobalDiscount(amount: Double) {
-        val transactionId = _uiState.value.transactionId ?: return
-
-        viewModelScope.launch {
-            try {
-                val safeAmount = amount.coerceAtLeast(0.0)
-                transactionRepository.updateTransactionPayment(
-                    transactionId,
-                    _uiState.value.paymentMethod,
-                    safeAmount
-                )
-                // Will auto-update via Flow observer
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal mengatur diskon: ${e.message}") }
-            }
+        val safeAmount = amount.coerceAtLeast(0.0)
+        _uiState.update {
+            val updatedTx = it.transaction?.copy(discount = safeAmount) ?: it.transaction
+            recalcTotals(it.copy(transaction = updatedTx, hasUnsavedChanges = true))
         }
     }
 
@@ -290,19 +268,9 @@ class PosViewModelReactive @Inject constructor(
      * Set payment method
      */
     fun setPaymentMethod(method: PaymentMethod) {
-        val transactionId = _uiState.value.transactionId ?: return
-
-        viewModelScope.launch {
-            try {
-                transactionRepository.updateTransactionPayment(
-                    transactionId,
-                    method,
-                    _uiState.value.globalDiscount
-                )
-                // Will auto-update via Flow observer
-            } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Gagal mengatur metode pembayaran: ${e.message}") }
-            }
+        _uiState.update {
+            val updatedTx = it.transaction?.copy(paymentMethod = method) ?: it.transaction
+            it.copy(transaction = updatedTx, hasUnsavedChanges = true)
         }
     }
 
@@ -401,22 +369,52 @@ class PosViewModelReactive @Inject constructor(
         }
     }
 
-    private suspend fun saveCartToDatabase(transactionId: String, items: List<TransactionItemEntity>) {
-        // Convert to format expected by repository
-        val itemPairs = items.map { it.productId to it.quantity }
-        val itemDiscounts = items.associate { it.productId to it.discount }
+    private fun startAutoSave() {
+        autoSaveJob = viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000)
+                if (_uiState.value.hasUnsavedChanges) {
+                    saveToDatabase()
+                }
+            }
+        }
+    }
 
-        // Save items
-        transactionRepository.updateTransactionItems(transactionId, itemPairs, itemDiscounts)
+    suspend fun saveToDatabase(): Boolean {
+        val state = _uiState.value
+        val transactionId = state.transactionId ?: return false
+        return try {
+            _uiState.update { it.copy(isSaving = true) }
 
-        // Calculate and save totals
-        val subtotal = items.sumOf { it.subtotal }
-        val tax = subtotal * _uiState.value.taxRate
-        val discount = _uiState.value.globalDiscount
-        val total = subtotal + tax - discount
+            val itemPairs = state.transactionItems.map { it.productId to it.quantity }
+            val itemDiscounts = state.transactionItems.associate { it.productId to it.discount }
+            transactionRepository.updateTransactionItems(transactionId, itemPairs, itemDiscounts)
 
-        transactionRepository.updateTransactionTotals(transactionId, subtotal, tax, discount, total)
+            val subtotal = state.subtotal
+            val tax = state.tax
+            val discount = state.globalDiscount
+            val total = state.total
+            transactionRepository.updateTransactionTotals(transactionId, subtotal, tax, discount, total)
 
-        // Will auto-update via Flow observer, no need to manually update state
+            state.transaction?.let {
+                transactionRepository.updateTransactionPayment(transactionId, it.paymentMethod, it.discount)
+            }
+
+            _uiState.update { it.copy(isSaving = false, hasUnsavedChanges = false) }
+            true
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    isSaving = false,
+                    errorMessage = "Gagal menyimpan transaksi: ${e.message}"
+                )
+            }
+            false
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        autoSaveJob?.cancel()
     }
 }

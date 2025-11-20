@@ -1,3 +1,4 @@
+@file:Suppress("UNUSED_VALUE", "ASSIGNED_VALUE")
 package id.stargan.intikasir.feature.pos.ui
 
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.pos.ui.components.CartSummaryReactive
 import id.stargan.intikasir.feature.pos.ui.components.PosProductItemReactive
 import id.stargan.intikasir.feature.home.ui.HomeViewModel
+import kotlinx.coroutines.launch
 
 /**
  * POS Screen - Reactive Version
@@ -26,11 +28,11 @@ import id.stargan.intikasir.feature.home.ui.HomeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PosScreenReactive(
+    modifier: Modifier = Modifier,
     transactionId: String? = null,
     onNavigateToCart: (String) -> Unit,
     onNavigateToPayment: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier,
     viewModel: PosViewModelReactive = hiltViewModel(),
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -39,6 +41,7 @@ fun PosScreenReactive(
     val searchState = remember { mutableStateOf(TextFieldValue("")) }
     val snackbarHostState = remember { SnackbarHostState() }
     var showClearConfirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Initialize transaction only when we have a user or an explicit transactionId
     LaunchedEffect(transactionId, currentUser?.id) {
@@ -82,7 +85,14 @@ fun PosScreenReactive(
             TopAppBar(
                 title = { Text("Kasir") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            if (state.hasUnsavedChanges) {
+                                viewModel.saveToDatabase()
+                            }
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali")
                     }
                 },
@@ -105,7 +115,13 @@ fun PosScreenReactive(
                     ) {
                         IconButton(
                             onClick = {
-                                state.transactionId?.let { onNavigateToCart(it) }
+                                scope.launch {
+                                    if (viewModel.saveToDatabase()) {
+                                        state.transactionId?.let { onNavigateToCart(it) }
+                                    } else {
+                                        snackbarHostState.showSnackbar("Gagal menyimpan transaksi")
+                                    }
+                                }
                             },
                             enabled = state.hasItems
                         ) {
@@ -120,7 +136,13 @@ fun PosScreenReactive(
             Surface(tonalElevation = 3.dp) {
                 Button(
                     onClick = {
-                        state.transactionId?.let { onNavigateToPayment(it) }
+                        scope.launch {
+                            if (viewModel.saveToDatabase()) {
+                                state.transactionId?.let { onNavigateToPayment(it) }
+                            } else {
+                                snackbarHostState.showSnackbar("Gagal menyimpan transaksi")
+                            }
+                        }
                     },
                     enabled = state.hasItems && !state.isSaving,
                     modifier = Modifier

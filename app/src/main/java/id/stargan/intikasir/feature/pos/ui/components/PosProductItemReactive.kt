@@ -291,9 +291,8 @@ fun PosProductItemReactive(
                 TextButton(
                     onClick = {
                         if (discountPerUnit <= maxDiscountPerUnit) {
-                            // Convert per-unit discount to total discount
-                            val totalDiscountAmount = discountPerUnit.toDouble() * transactionItem.quantity
-                            onSetDiscount(totalDiscountAmount)
+                            // Send per-unit discount (ViewModel will multiply by quantity)
+                            onSetDiscount(discountPerUnit.toDouble())
                             showDiscountDialog = false
                         }
                     },

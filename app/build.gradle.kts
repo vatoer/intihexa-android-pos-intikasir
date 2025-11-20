@@ -5,6 +5,8 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
 
 android {
@@ -35,7 +37,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "11"
+        // remove deprecated jvmTarget usage handled below
+    }
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
     buildFeatures {
         compose = true
@@ -102,13 +109,35 @@ dependencies {
 
 
     // Image cropping
-    implementation("com.github.yalantis:ucrop:2.2.8")
+    implementation(libs.ucrop)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    // Use root project config file
+    config.setFrom(files(rootProject.file("detekt.yml")))
+    autoCorrect = true
+}
+
+ktlint {
+    android.set(true)
+    outputColorName.set("RED")
+    ignoreFailures.set(false)
+    reporters { reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN) }
+}
+
+tasks.register("quality") {
+    group = "verification"
+    description = "Run code quality checks (detekt, ktlint, unit tests)."
+    dependsOn("detekt", "ktlintCheck", "test")
 }
