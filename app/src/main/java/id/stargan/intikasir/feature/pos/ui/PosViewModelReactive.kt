@@ -283,6 +283,11 @@ class PosViewModelReactive @Inject constructor(
         try {
             _uiState.update { it.copy(isSaving = true) }
 
+            // Save any pending changes first (including global discount)
+            if (_uiState.value.hasUnsavedChanges) {
+                saveToDatabase()
+            }
+
             val received = cashReceived ?: _uiState.value.total
             val change = (received - _uiState.value.total).coerceAtLeast(0.0)
 
@@ -296,7 +301,8 @@ class PosViewModelReactive @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSaving = false,
-                    successMessage = "Transaksi berhasil diselesaikan"
+                    successMessage = "Transaksi berhasil diselesaikan",
+                    hasUnsavedChanges = false
                 )
             }
         } catch (e: Exception) {

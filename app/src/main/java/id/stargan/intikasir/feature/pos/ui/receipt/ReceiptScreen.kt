@@ -34,6 +34,7 @@ fun ReceiptScreen(
     cashReceived: Double,
     cashChange: Double,
     paymentMethod: String,
+    globalDiscount: Double = 0.0,
     transactionStatus: TransactionStatus = TransactionStatus.PAID,
     onFinish: () -> Unit,
     onPrint: (onResult: (Boolean, String) -> Unit) -> Unit,
@@ -181,6 +182,16 @@ fun ReceiptScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Total Belanja")
                         Text(nf.format(total).replace("Rp", "Rp "), fontWeight = FontWeight.Bold)
+                    }
+
+                    if (globalDiscount > 0) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Diskon Global")
+                            Text(
+                                "- ${nf.format(globalDiscount).replace("Rp", "Rp ")}",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
 
                     if (paymentMethod == "CASH" && cashReceived > 0) {

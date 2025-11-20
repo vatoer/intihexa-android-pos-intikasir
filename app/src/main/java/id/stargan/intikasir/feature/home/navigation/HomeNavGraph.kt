@@ -338,6 +338,7 @@ fun NavGraphBuilder.homeNavGraph(
             cashReceived = state.transaction?.cashReceived ?: 0.0,
             cashChange = state.transaction?.cashChange ?: 0.0,
             paymentMethod = state.paymentMethod.name,
+            globalDiscount = state.transaction?.discount ?: 0.0,
             transactionStatus = state.transaction?.status ?: TransactionStatus.PAID,
             onFinish = {
                 navController.navigate(HomeRoutes.HOME) {
