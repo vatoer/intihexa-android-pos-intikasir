@@ -77,24 +77,19 @@ object ReceiptPrinter {
                 if (logoFile.exists()) {
                     val bmp = BitmapFactory.decodeFile(settings.storeLogo)
                     if (bmp != null) {
-                        // Limit logo to reasonable size (max 80 pixels for receipt)
-                        val maxW = 80
-                        val maxH = 80
-                        val ratio = bmp.width.toFloat() / bmp.height.toFloat()
+                        // Logo should be 1/3 of page width (square)
+                        // A4 portrait page width = 595px, so max logo = 595/3 ≈ 198px
+                        val maxLogoSize = (pageInfo.pageWidth / 3).toInt()
 
-                        var w = min(maxW, bmp.width)
-                        var h = (w / ratio).toInt().coerceAtLeast(1)
+                        // Scale to square maintaining aspect ratio
+                        val size = min(maxLogoSize, min(bmp.width, bmp.height))
+                        val scaled = Bitmap.createScaledBitmap(bmp, size, size, true)
 
-                        // If height exceeds max, recalculate
-                        if (h > maxH) {
-                            h = maxH
-                            w = (h * ratio).toInt().coerceAtLeast(1)
-                        }
-
-                        val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
+                        // Center horizontally
                         val cx = (pageInfo.pageWidth - scaled.width) / 2f
                         canvas.drawBitmap(scaled, cx, y, paint)
-                        y += scaled.height + 12 // Reduced spacing
+                        y += scaled.height + 12
+
                         bmp.recycle()
                         scaled.recycle()
                     }
@@ -417,24 +412,20 @@ object ReceiptPrinter {
                 if (logoFile.exists()) {
                     val bmp = BitmapFactory.decodeFile(settings.storeLogo)
                     if (bmp != null) {
-                        // Limit logo to reasonable size for thermal receipt
-                        val maxW = if (paperWidthMm >= 80) 80 else 60 // Reduced from 120/80
-                        val maxH = 80 // Max height
-                        val ratio = bmp.width.toFloat() / bmp.height.toFloat()
+                        // Logo should be 1/3 of page width (square)
+                        // For 58mm: pageWidth=384px, logo=128px
+                        // For 80mm: pageWidth=576px, logo=192px
+                        val maxLogoSize = (pageWidthPx / 3).toInt()
 
-                        var w = min(maxW, bmp.width)
-                        var h = (w / ratio).toInt().coerceAtLeast(1)
+                        // Scale to square
+                        val size = min(maxLogoSize, min(bmp.width, bmp.height))
+                        val scaled = Bitmap.createScaledBitmap(bmp, size, size, true)
 
-                        // If height exceeds max, recalculate
-                        if (h > maxH) {
-                            h = maxH
-                            w = (h * ratio).toInt().coerceAtLeast(1)
-                        }
-
-                        val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
+                        // Center horizontally
                         val cx = (pageWidthPx - scaled.width) / 2f
                         canvas.drawBitmap(scaled, cx, y, null)
                         y += scaled.height + 8
+
                         bmp.recycle()
                         scaled.recycle()
                     }

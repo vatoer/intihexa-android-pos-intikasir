@@ -1,359 +1,153 @@
-# Logo Printing Implementation - Thermal Printer Optimization
+# Logo Printing Implementation
 
-## Tanggal: 18 November 2025
+## Overview
+Logo printing untuk thermal receipt telah direfactor ke file terpisah untuk memudahkan debugging dan maintenance.
 
-## Masalah yang Diperbaiki
+## File Structure
 
-### Logo Tidak Muncul di Struk ESC/POS Thermal Printer
+### ThermalLogoPrinter.kt
+Helper class untuk mencetak logo pada thermal printer via ESC/POS commands.
 
-**Masalah:**
-- Setting "Tampilkan Logo di Struk" sudah diaktifkan
-- Logo tidak muncul saat print ke thermal printer (Bluetooth ESC/POS)
-- Logo hanya muncul di PDF print (A4 & Thermal PDF)
+**Lokasi:** `app/src/main/java/id/stargan/intikasir/feature/pos/print/ThermalLogoPrinter.kt`
 
-**Penyebab:**
-- ESCPosPrinter tidak memiliki implementasi untuk print logo
-- Tidak ada kode untuk convert bitmap ke ESC/POS format
+**Fungsi Utama:**
+- `printLogo(context, out, settings)` - Mencetak logo ke thermal printer
 
-**Solusi:**
-- ✅ Implementasi ThermalLogoHelper untuk convert logo sekali saat save
-- ✅ Simpan logo dalam format binary siap print (efficient)
-- ✅ ESCPosPrinter tinggal load dan print (no conversion overhead)
+### Ukuran Logo
 
----
+**Formula:** Logo = 1/3 lebar kertas (square)
+**Catatan:** Ukuran dikurangi untuk mencegah buffer overflow pada thermal printer
 
-## Implementasi Baru
+#### ESC/POS Thermal Printer:
+- Paper 58mm → Logo size = 100×100 dots (~12.5×12.5mm)
+- Paper 80mm → Logo size = 150×150 dots (~19×19mm)
 
-### 1. ThermalLogoHelper - Efficient Logo Management
+**Alasan ukuran dikurangi:**
+- Mencegah buffer overflow pada printer thermal
+- Meningkatkan kompatibilitas dengan berbagai model printer
+- Mempercepat proses printing
 
-**File:** `/app/src/main/java/id/stargan/intikasir/util/ThermalLogoHelper.kt`
-
-**Fitur:**
-1. **Save Original Logo** - Simpan untuk preview di UI
-2. **Generate Thermal Bitmap** - Convert ke format ESC/POS siap print
-3. **Binary Format** - Simpan dalam .bin file (efficient)
-4. **One-time Conversion** - Convert sekali saat save, bukan setiap print
-5. **Fast Printing** - Tinggal load binary dan kirim ke printer
-
-**Format Binary:**
-```
-Header (4 bytes):
-- Byte 0-1: Width (little-endian uint16)
-- Byte 2-3: Height (little-endian uint16)
-
-Data:
-- ESC/POS bit image format (strips of 24 dots)
-- 3 bytes per column per strip
-- Ready to send ke printer tanpa processing
-```
-
-**Files:**
-- `store_logo.jpg` - Original logo (for preview)
-- `thermal_logo.bin` - Pre-processed thermal bitmap
-
----
-
-### 2. ESCPosPrinter - Logo Print Support
-
-**Changes:**
+**Kalkulasi:**
 ```kotlin
-// Before: No logo support
-fun writeReceipt(...) {
-    // Initialize
-    // Header
-    // Items
-    ...
-}
-
-// After: Logo support dengan ThermalLogoHelper
-fun writeReceipt(..., context: Context) {
-    // Initialize
-    
-    // Logo (if enabled)
-    if (settings.printLogo) {
-        ThermalLogoHelper.printThermalLogo(context, out)
-        text("") // line break
-    }
-    
-    // Header
-    // Items
-    ...
+val targetLogoSize = when {
+    paperWidthMm >= 80 -> 150 // ~19mm for 80mm paper
+    else -> 100 // ~12.5mm for 58mm paper
 }
 ```
 
-**Benefits:**
-- ✅ No conversion overhead setiap print
-- ✅ Fast printing (tinggal kirim binary data)
-- ✅ Konsisten dengan PDF printer
+#### PDF Receipt (A4 Portrait):
+- Page width = 595px
+- Logo size = 198x198px (595/3)
 
----
+#### PDF Receipt (Thermal):
+- 58mm: pageWidth=384px → Logo=128x128px
+- 80mm: pageWidth=576px → Logo=192x192px
 
-### 3. StoreSettingsViewModel - Auto Generate
-
-**Changes:**
-```kotlin
-// When logo cropped/saved
-LogoCropped -> {
-    // Save original
-    val path = imageRepository.saveImage(uri)
-    
-    // Generate thermal-ready bitmap
-    val bitmap = BitmapFactory.decodeFile(path)
-    ThermalLogoHelper.saveLogoAndGenerateThermal(
-        context,
-        bitmap,
-        paperWidthChars
-    )
-    
-    // Update settings
-    updateStoreLogoUseCase(path)
-}
-
-// When logo removed
-RemoveLogo -> {
-    // Delete both original and thermal
-    imageRepository.deleteImage(path)
-    ThermalLogoHelper.deleteLogo(context)
-}
-```
-
-**Benefits:**
-- ✅ Automatic thermal bitmap generation
-- ✅ No manual intervention needed
-- ✅ Always ready to print
-
----
+### Posisi Logo
+- **ESC/POS:** Logo dicetak di tengah menggunakan `ESC a 1` (center align command)
+- **PDF:** Logo di-center horizontal menggunakan koordinat canvas
 
 ## Technical Details
 
-### Thermal Logo Generation Process
+### ESC/POS Logo Printing
+- Menggunakan command `ESC a 1` untuk center alignment sebelum print logo
+- Menggunakan command `ESC * 0` (8-dot single-density mode, 60 DPI) untuk kompatibilitas lebih baik
+- Bitmap dikonversi ke monochrome (threshold = 128)
+- Dicetak dalam strip 8 dots vertical (bukan 24 dots untuk menghindari buffer overflow)
+- Setiap kolom pixel = 1 byte (8 bits)
+- Setelah selesai, reset ke left alignment dengan `ESC a 0`
 
-1. **Load Original Image**
-   ```kotlin
-   val bitmap = BitmapFactory.decodeFile(logoPath)
-   ```
+**Perubahan dari versi sebelumnya:**
+- ❌ **Sebelumnya:** Menggunakan manual padding dengan spasi → **Tidak konsisten**
+- ✅ **Sekarang:** Menggunakan `ESC a 1` command → **Reliable centering**
+- ❌ **Sebelumnya:** 24-dot double-density (ESC * 33) → **Buffer overflow**
+- ✅ **Sekarang:** 8-dot single-density (ESC * 0) → **Better compatibility**
+- ❌ **Sebelumnya:** Logo size up to 384 dots → **Printer stuck**
+- ✅ **Sekarang:** Logo size max 150 dots → **Smooth printing**
 
-2. **Scale to Printer Width**
-   ```kotlin
-   val maxDots = paperWidthChars * 8 // 32 chars = 256 dots
-   val targetWidth = min(maxDots, bitmap.width)
-   val targetHeight = (targetWidth / ratio).toInt()
-   val scaled = Bitmap.createScaledBitmap(...)
-   ```
+### Debugging
+Semua fungsi logo printing memiliki Log.d untuk tracking:
+- Original bitmap size
+- Target logo size
+- Scaled bitmap size
+- Print success/failure
 
-3. **Convert to Monochrome**
-   ```kotlin
-   val threshold = 128
-   val dots = Array(height) { y ->
-       BooleanArray(width) { x ->
-           val gray = (r + g + b) / 3
-           gray < threshold // dark = true
-       }
-   }
-   ```
+## Usage
 
-4. **Save as ESC/POS Format**
-   ```kotlin
-   // Process in strips of 24 dots (ESC * command format)
-   for each strip:
-       for each column:
-           3 bytes (24 dots) per column
-           save to binary file
-   ```
-
-5. **Print Pre-processed Data**
-   ```kotlin
-   // Read binary file
-   val data = thermalFile.readBytes()
-   
-   // Send ESC * commands with data
-   outputStream.write(byteArrayOf(0x1B, 0x2A, 33, nL, nH))
-   outputStream.write(data, offset, stripSize)
-   ```
-
----
-
-## Performance Comparison
-
-### Before (Without ThermalLogoHelper):
-
-```
-Print Receipt:
-1. Load logo from file (I/O)
-2. Scale bitmap
-3. Convert to monochrome
-4. Convert to ESC/POS format
-5. Send to printer
-
-Time: ~500-1000ms per print
+### ESC/POS
+```kotlin
+if (settings.printLogo) {
+    val logoSuccess = ThermalLogoPrinter.printLogo(context, out, settings)
+    if (logoSuccess) {
+        // Logo printed successfully
+    }
+}
 ```
 
-### After (With ThermalLogoHelper):
+### PDF
+Logo printing sudah terintegrasi di `generateReceiptPdf()` dan `generateThermalReceiptPdf()`.
 
-```
-Save Logo (one-time):
-1. Save original
-2. Generate thermal binary
-Time: ~500ms (once)
+## Changes Log
 
-Print Receipt:
-1. Load thermal binary (small I/O)
-2. Send to printer
-Time: ~100-200ms per print
+### 2025-11-20 (Update 3) - FINAL FIX
+- **Fix:** Logo aspect ratio - Logo yang sebelumnya memanjang ke atas sekarang benar-benar square
+  - Menambahkan cropping ke square sebelum scaling
+  - Menggunakan dimensi terkecil dari width/height untuk crop center
+- **Fix:** Print berhenti setelah logo
+  - Menghapus `text("")` call yang menyebabkan conflict
+  - Menambahkan `flush()` setelah logo selesai
+  - Menambahkan delay 100ms untuk memberi waktu printer memproses bitmap
+- **Improvement:** Lebih stabil dan reliable
 
-Improvement: 3-5x faster! ✅
-```
+### 2025-11-20 (Update 2)
+- **Fix:** Printer stuck issue - Mengurangi ukuran logo max (58mm: 100 dots, 80mm: 150 dots)
+- **Fix:** Logo posisi kiri - Menggunakan `ESC a 1` command untuk center alignment
+- **Fix:** Buffer overflow - Mengganti 24-dot mode dengan 8-dot mode
+- **Improvement:** Lebih kompatibel dengan berbagai model thermal printer
 
----
+### 2025-11-20 (Update 1)
+- **Refactor:** Logo printing untuk ESC/POS dipindahkan ke `ThermalLogoPrinter.kt`
+- **Fix:** Ukuran logo disesuaikan dengan formula 1/3 lebar kertas (square)
+- **Fix:** Logo di-center horizontal untuk ESC/POS dan PDF
+- **Improvement:** Menambahkan detailed logging untuk debugging
 
-## Logo Size Recommendations
+## Troubleshooting
 
-### For 58mm Printer (32 chars):
-- Max width: ~256 dots (32 × 8)
-- Recommended: 200 × 200 pixels
-- Aspect ratio: Square or landscape
+### Masalah: Logo memanjang ke atas (bukan square)
+**Penyebab:** Original bitmap langsung di-scale tanpa crop ke square terlebih dahulu
+**Solusi:** 
+- Crop bitmap ke square menggunakan dimensi terkecil
+- Ambil bagian center dari bitmap original
+- Baru kemudian scale ke target size
 
-### For 80mm Printer (48 chars):
-- Max width: ~384 dots (48 × 8)
-- Recommended: 300 × 300 pixels
-- Aspect ratio: Square or landscape
+### Masalah: Print berhenti setelah logo
+**Penyebab:** 
+- Conflict antara alignment commands
+- Buffer tidak di-flush dengan baik
+- Printer butuh waktu untuk proses bitmap
 
-### General Tips:
-- Use simple, high-contrast logos
-- Avoid thin lines (may not print well)
-- Black & white or simple colors work best
-- Test print before using in production
+**Solusi:**
+- Hapus `text("")` setelah logo
+- Panggil `flush()` setelah selesai print logo
+- Tambahkan delay 100ms sebelum melanjutkan
+- Pastikan reset alignment (ESC a 0) dipanggil
 
----
+### Masalah: Printer stuck / tidak mencetak keseluruhan
+**Penyebab:** Ukuran logo terlalu besar menyebabkan buffer overflow
+**Solusi:** Kurangi ukuran logo max (sekarang: 100-150 dots)
 
-## Files Modified
+### Masalah: Logo tercetak di kiri, tidak di tengah
+**Penyebab:** Manual padding dengan spasi tidak konsisten
+**Solusi:** Gunakan `ESC a 1` command untuk center alignment
 
-### 1. ✅ New File: `ThermalLogoHelper.kt`
-- Logo save dan generate thermal bitmap
-- Efficient binary format
-- Fast printing support
+### Masalah: Logo tidak tercetak sama sekali
+**Kemungkinan penyebab:**
+1. File logo tidak ada atau corrupt
+2. Format file tidak didukung
+3. Izin file tidak mencukupi
 
-### 2. ✅ `ESCPosPrinter.kt`
-- Add logo printing before header
-- Use ThermalLogoHelper.printThermalLogo()
-- Add context parameter
-
-### 3. ✅ `StoreSettingsViewModel.kt`
-- Inject ApplicationContext
-- Generate thermal bitmap on logo save
-- Delete thermal bitmap on logo remove
-
----
-
-## Usage Flow
-
-### Setup (User):
-```
-1. Settings → Toko → Upload Logo
-2. Crop logo
-3. System auto-generate thermal bitmap ✅
-4. Enable "Tampilkan Logo di Struk"
-```
-
-### Print (System):
-```
-1. User checkout transaksi
-2. Click "Cetak"
-3. System load thermal binary (fast)
-4. Send to printer
-5. Logo muncul di struk! ✅
-```
-
----
-
-## Testing Checklist
-
-### Logo Save:
-- [x] Upload logo via gallery
-- [x] Crop logo
-- [x] Thermal bitmap auto-generated
-- [x] Both files exist (jpg + bin)
-
-### Logo Print (ESC/POS):
-- [x] Setting "Tampilkan Logo" enabled
-- [x] Print receipt
-- [x] Logo appears at top
-- [x] Centered alignment
-- [x] Good quality
-
-### Logo Print (PDF):
-- [x] Thermal PDF shows logo
-- [x] A4 PDF shows logo
-- [x] Same logo across all formats
-
-### Logo Remove:
-- [x] Delete logo
-- [x] Both files deleted
-- [x] Preview cleared
-- [x] No logo on next print
-
----
-
-## Build Status
-
-✅ **BUILD SUCCESSFUL**
-```
-42 actionable tasks: 10 executed, 32 up-to-date
-Warnings: Only deprecated API (cosmetic)
-```
-
----
-
-## Summary
-
-### Problem:
-❌ Logo tidak muncul di struk thermal printer meskipun sudah diaktifkan
-
-### Root Cause:
-❌ ESCPosPrinter tidak punya implementasi logo printing
-❌ Tidak ada conversion bitmap ke ESC/POS format
-
-### Solution:
-✅ **ThermalLogoHelper** - Pre-process logo sekali saat save
-✅ **Binary format** - Efficient storage & fast printing
-✅ **ESCPosPrinter integration** - Print pre-processed logo
-✅ **Auto-generation** - Transparent untuk user
-
-### Result:
-- ✅ Logo muncul di ESC/POS thermal printer
-- ✅ Logo muncul di PDF (thermal & A4)
-- ✅ Consistent di semua format
-- ✅ Fast printing (3-5x lebih cepat)
-- ✅ User-friendly (automatic)
-
----
-
-## Implementation Notes
-
-### Why Binary Format?
-
-1. **Performance** - No conversion overhead setiap print
-2. **Efficiency** - Small file size (~5-20KB typical)
-3. **Reliability** - Pre-validated format
-4. **Simplicity** - Tinggal load dan kirim
-
-### Why Monochrome?
-
-1. **Thermal printer limitation** - Only black/white dots
-2. **Better quality** - Consistent output
-3. **Smaller file** - 1 bit per pixel
-4. **Standard** - ESC/POS format requirement
-
-### Why 24-dot Strips?
-
-1. **ESC * command** - Standard 24-dot mode
-2. **Wide compatibility** - Most thermal printers support
-3. **Good balance** - Resolution vs speed
-4. **Reliable** - Well-tested format
-
----
-
-**Status: ✅ COMPLETE & TESTED**
-
-Logo sekarang muncul di struk thermal printer dengan performance yang optimal! 🎉
+**Solusi:** 
+- Periksa log untuk detail error
+- Pastikan file logo valid (JPEG/PNG)
+- Pastikan path logo benar di StoreSettings
 
