@@ -143,6 +143,23 @@ object ReceiptPrinter {
         drawCenteredText(canvas, "STRUK PEMBAYARAN", centerX, y, headerPaint)
         y += 24
 
+        // Check payment status and add notice if not PAID or COMPLETED
+        val isPaidOrCompleted = transaction.status == id.stargan.intikasir.data.local.entity.TransactionStatus.PAID ||
+                                transaction.status == id.stargan.intikasir.data.local.entity.TransactionStatus.COMPLETED
+        if (!isPaidOrCompleted) {
+            val warningPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textSize = 16f
+                color = Color.RED
+            }
+            drawCenteredText(canvas, "*** BELUM DIBAYAR ***", centerX, y, warningPaint)
+            y += 24
+            paint.strokeWidth = 2f
+            paint.color = Color.RED
+            canvas.drawLine(xPadding, y, pageInfo.pageWidth - xPadding, y, paint)
+            y += 22f
+        }
+
         // Transaction header
         val dateStr = dateFormat.format(Date(transaction.updatedAt))
         canvas.drawText("No. Transaksi:", xPadding, y, boldPaint)

@@ -150,7 +150,8 @@ fun NavGraphBuilder.homeNavGraph(
             onBack = { navController.navigateUp() },
             onPrint = { tx ->
                 scope.launch {
-                    posVm.loadTransaction(txId)
+                    // Ensure transaction & items are loaded before printing
+                    posVm.loadTransactionBlocking(txId)
                     val items = posVm.uiState.value.transactionItems
                     val settings = settingsState.settings
 
@@ -177,7 +178,7 @@ fun NavGraphBuilder.homeNavGraph(
             },
             onShare = { tx ->
                 scope.launch {
-                    posVm.loadTransaction(txId)
+                    posVm.loadTransactionBlocking(txId)
                     val items = posVm.uiState.value.transactionItems
                     val settings = settingsState.settings
                     val result = ReceiptPrinter.generateThermalReceiptPdf(context, settings, tx, items)
@@ -206,9 +207,9 @@ fun NavGraphBuilder.homeNavGraph(
                         is ESCPosPrinter.PrintResult.Error -> {
                             Toast.makeText(context, "Gagal mencetak antrian: ${printResult.message}", Toast.LENGTH_LONG).show()
                         }
-                        else -> {
-                            Toast.makeText(context, "Hasil cetak antrian tidak diketahui", Toast.LENGTH_SHORT).show()
-                        }
+//                        else -> {
+//                            Toast.makeText(context, "Hasil cetak antrian tidak diketahui", Toast.LENGTH_SHORT).show()
+//                        }
                     }
                 }
             },
@@ -404,9 +405,9 @@ fun NavGraphBuilder.homeNavGraph(
                                 is ESCPosPrinter.PrintResult.Error -> {
                                     onResult(false, "Gagal mencetak: ${printResult.message}")
                                 }
-                                else -> {
-                                    onResult(false, "Hasil cetak antrian tidak diketahui")
-                                }
+//                                else -> {
+//                                    onResult(false, "Hasil cetak antrian tidak diketahui")
+//                                }
                             }
                         } ?: run {
                             onResult(true, "Antrian berhasil dibuat")

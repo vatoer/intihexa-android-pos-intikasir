@@ -158,6 +158,25 @@ object ESCPosPrinter {
         settings.storeAddress.takeIf { it.isNotBlank() }?.let { text(it.take(cpl)) }
         divider()
 
+        // Transaction Number
+        alignLeft()
+        text("No: ${transaction.transactionNumber}")
+        val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("id", "ID"))
+        text("Tgl: ${dateFormat.format(java.util.Date(transaction.transactionDate))}")
+        text("Kasir: ${transaction.cashierName}")
+        divider()
+
+        // Check payment status and add notice if not PAID or COMPLETED
+        val isPaidOrCompleted = transaction.status == id.stargan.intikasir.data.local.entity.TransactionStatus.PAID ||
+                                transaction.status == id.stargan.intikasir.data.local.entity.TransactionStatus.COMPLETED
+        if (!isPaidOrCompleted) {
+            alignCenter()
+            boldOn()
+            text("*** BELUM DIBAYAR ***")
+            boldOff()
+            divider()
+        }
+
         // Items
         alignLeft()
         items.forEach { itx ->
@@ -211,6 +230,16 @@ object ESCPosPrinter {
         }
 
         divider()
+
+        // Add payment status notice at the bottom if not paid/completed
+        if (!isPaidOrCompleted) {
+            alignCenter()
+            boldOn()
+            text("*** BELUM DIBAYAR ***")
+            boldOff()
+            divider()
+        }
+
         alignCenter(); text("Terima kasih")
 
         // Feed and optional cut

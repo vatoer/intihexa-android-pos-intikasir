@@ -150,6 +150,32 @@ class PosViewModelReactive @Inject constructor(
     }
 
     /**
+     * Synchronous (suspend) load that callers can await. Useful when the caller needs the data
+     * immediately after the call (e.g., when generating/printing a receipt).
+     */
+    suspend fun loadTransactionBlocking(transactionId: String) {
+        try {
+            _uiState.update { it.copy(transactionId = transactionId, isLoading = true) }
+
+            val transaction = transactionRepository.getTransactionById(transactionId).first()
+            val items = transactionRepository.getTransactionItems(transactionId).first()
+            _uiState.update {
+                recalcTotals(
+                    it.copy(
+                        transactionId = transactionId,
+                        transaction = transaction,
+                        transactionItems = items,
+                        isLoading = false,
+                        hasUnsavedChanges = false
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(isLoading = false, errorMessage = "Gagal memuat transaksi: ${e.message}") }
+        }
+    }
+
+    /**
      * Add or increment product in cart
      * Auto-save to database
      */
