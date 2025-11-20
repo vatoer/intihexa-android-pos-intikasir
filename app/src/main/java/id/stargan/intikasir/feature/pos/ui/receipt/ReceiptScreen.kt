@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+import android.util.Log
 
 /**
  * Receipt Screen - Struk pembayaran setelah checkout berhasil
@@ -175,6 +176,25 @@ fun ReceiptScreen(
                     )
                 }
 
+                // LaunchedEffect for print - triggered when isPrinting becomes true
+                LaunchedEffect(isPrinting) {
+                    if (isPrinting) {
+                        Log.d("ReceiptScreen", "Print process started")
+                        onPrint { success, message ->
+                            scope.launch {
+                                notificationState.show(
+                                    message = message,
+                                    icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
+                                    type = if (success) NotificationType.Success else NotificationType.Error,
+                                    duration = if (success) 2000L else 3000L
+                                )
+                                // delay(100) // Small delay before re-enabling
+                                isPrinting = false
+                            }
+                        }
+                    }
+                }
+
                 // Row: Cetak & Bagikan
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -182,20 +202,8 @@ fun ReceiptScreen(
                 ) {
                     Button(
                         onClick = {
-                            if (!isPrinting) {
-                                isPrinting = true
-                                onPrint { success, message ->
-                                    scope.launch {
-                                        notificationState.show(
-                                            message = message,
-                                            icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
-                                            type = if (success) NotificationType.Success else NotificationType.Error,
-                                            duration = if (success) 1000L else 2000L
-                                        )
-                                        delay(100)
-                                        isPrinting = false
-                                    }
-                                }
+                            if (!isPrinting && !isPrintingQueue) {
+                                isPrinting = true // Instant UI feedback
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -225,23 +233,30 @@ fun ReceiptScreen(
                     }
                 }
 
+                // LaunchedEffect for print queue - triggered when isPrintingQueue becomes true
+                LaunchedEffect(isPrintingQueue) {
+                    if (isPrintingQueue) {
+                        Log.d("ReceiptScreen", "Print queue process started")
+                        onPrintQueue { success, message ->
+                            scope.launch {
+                                notificationState.show(
+                                    message = message,
+                                    icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
+                                    type = if (success) NotificationType.Success else NotificationType.Error,
+                                    duration = if (success) 2000L else 3000L
+                                )
+//                                delay(100) // Small delay before re-enabling
+                                isPrintingQueue = false
+                            }
+                        }
+                    }
+                }
+
                 // Antrian button
                 OutlinedButton(
                     onClick = {
-                        if (!isPrintingQueue) {
-                            isPrintingQueue = true
-                            onPrintQueue { success, message ->
-                                scope.launch {
-                                    notificationState.show(
-                                        message = message,
-                                        icon = if (success) Icons.Default.CheckCircle else Icons.Default.Error,
-                                        type = if (success) NotificationType.Success else NotificationType.Error,
-                                        duration = if (success) 2000L else 3000L
-                                    )
-                                    delay(100)
-                                    isPrintingQueue = false
-                                }
-                            }
+                        if (!isPrinting && !isPrintingQueue) {
+                            isPrintingQueue = true // Instant UI feedback
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

@@ -54,7 +54,7 @@ object ThermalLogoPrinter {
             val maxPrinterWidth = if (settings.paperWidthMm >= 80) 576 else 384
 
             // 1. Kecilkan logo ke ukuran yang diinginkan
-            val logoTargetWidth = (maxPrinterWidth * 0.45).toInt()
+            val logoTargetWidth = (maxPrinterWidth * 0.25).toInt()
             val aspectRatio = originalBitmap.height.toFloat() / originalBitmap.width.toFloat()
             val logoTargetHeight = (logoTargetWidth * aspectRatio).toInt()
             val scaledLogoBitmap = Bitmap.createScaledBitmap(
