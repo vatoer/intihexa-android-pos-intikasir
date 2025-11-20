@@ -68,7 +68,7 @@ object ThermalLogoPrinter {
             val finalBitmap = createBitmapWithPadding(
                 logo = scaledLogoBitmap,
                 totalWidth = maxPrinterWidth,
-                horizontalBias = 0.6f // 0.5f=tengah, >0.5f=ke kanan
+                horizontalBias = 0.55f // 0.5f=tengah, >0.5f=ke kanan
             )
 
             Log.d(
@@ -176,7 +176,7 @@ object ThermalLogoPrinter {
         }
 
         // Beri satu baris spasi setelah gambar untuk memisahkan dengan teks berikutnya
-        out.write(byteArrayOf(0x0A))
+//        out.write(byteArrayOf(0x0A))
         out.flush()
     }
 }
