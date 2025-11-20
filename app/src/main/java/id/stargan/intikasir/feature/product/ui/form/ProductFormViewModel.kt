@@ -1,6 +1,7 @@
 package id.stargan.intikasir.feature.product.ui.form
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -128,7 +129,10 @@ class ProductFormViewModel @Inject constructor(
                                 imageUrl = product.imageUrl ?: "",
                                 imagePreviewUri = product.imageUrl?.let { Uri.parse(it) },
                                 isActive = product.isActive,
-                                isLoading = false
+                                isLoading = false,
+                                // Store original timestamps for edit mode
+                                originalCreatedAt = product.createdAt,
+                                originalUpdatedAt = product.updatedAt
                             )
                         }
                     } else {
@@ -154,13 +158,31 @@ class ProductFormViewModel @Inject constructor(
                 val state = _uiState.value
                 val priceDouble = state.rawPrice.toDoubleOrNull() ?: 0.0
                 val costDouble = state.rawCost.toDoubleOrNull()
+
+                Log.d("ProductFormVM", "===== SAVE PRODUCT DEBUG =====")
+                Log.d("ProductFormVM", "Edit Mode: ${state.isEditMode}")
+                Log.d("ProductFormVM", "Product ID: ${state.productId}")
+                Log.d("ProductFormVM", "Category ID (raw): '${state.categoryId}'")
+                Log.d("ProductFormVM", "Category ID (trimmed): '${state.categoryId.trim()}'")
+                Log.d("ProductFormVM", "Available categories: ${state.categories.map { "${it.id}:${it.name}" }}")
+
+                // Ensure empty strings are converted to null to avoid foreign key constraint errors
+                val validCategoryId = state.categoryId.trim().ifBlank { null }
+
+                Log.d("ProductFormVM", "Valid Category ID (after processing): $validCategoryId")
+
+                // Use original timestamps for edit mode, new timestamps for insert mode
+                val currentTime = System.currentTimeMillis()
+                val createdAt = if (state.isEditMode) state.originalCreatedAt else currentTime
+                val updatedAt = currentTime
+
                 val product = Product(
                     id = if (state.isEditMode) state.productId else UUID.randomUUID().toString(),
                     name = state.name.trim(),
                     sku = state.sku.trim().ifBlank { null },
                     barcode = state.barcode.trim().ifBlank { null },
-                    categoryId = state.categoryId.ifBlank { null },
-                    categoryName = state.categories.find { it.id == state.categoryId }?.name,
+                    categoryId = validCategoryId,
+                    categoryName = validCategoryId?.let { catId -> state.categories.find { it.id == catId }?.name },
                     description = state.description.trim().ifBlank { null },
                     price = priceDouble,
                     cost = costDouble,
@@ -169,11 +191,15 @@ class ProductFormViewModel @Inject constructor(
                     lowStockThreshold = state.minStock.toIntOrNull() ?: 10,
                     imageUrl = state.imageUrl.ifBlank { state.imagePreviewUri?.toString() },
                     isActive = state.isActive,
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
+                    createdAt = createdAt,
+                    updatedAt = updatedAt
                 )
 
+                Log.d("ProductFormVM", "Product object created - categoryId: ${product.categoryId}, categoryName: ${product.categoryName}")
+
                 saveProductUseCase(product)
+
+                Log.d("ProductFormVM", "Product saved successfully")
 
                 _uiState.update {
                     it.copy(
@@ -182,6 +208,7 @@ class ProductFormViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("ProductFormVM", "Failed to save product: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         isSaving = false,

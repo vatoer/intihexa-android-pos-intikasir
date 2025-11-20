@@ -41,7 +41,11 @@ data class ProductFormUiState(
     val isSaving: Boolean = false,
     val error: String? = null,
     val isEditMode: Boolean = false,
-    val saveSuccess: Boolean = false
+    val saveSuccess: Boolean = false,
+
+    // Original timestamps for edit mode
+    val originalCreatedAt: Long = System.currentTimeMillis(),
+    val originalUpdatedAt: Long = System.currentTimeMillis()
 )
 
 /**

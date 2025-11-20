@@ -1,5 +1,6 @@
 package id.stargan.intikasir.feature.product.data.repository
 
+import android.util.Log
 import id.stargan.intikasir.data.local.dao.CategoryDao
 import id.stargan.intikasir.data.local.dao.ProductDao
 import id.stargan.intikasir.domain.model.Category
@@ -57,11 +58,49 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insertProduct(product: Product) {
-        val entity = product.copy(
-            id = if (product.id.isEmpty()) UUID.randomUUID().toString() else product.id,
-            updatedAt = System.currentTimeMillis()
-        ).toEntity()
-        productDao.insertProduct(entity)
+        try {
+            Log.d("ProductRepository", "===== INSERT/UPDATE PRODUCT DEBUG =====")
+            Log.d("ProductRepository", "Product ID: ${product.id}")
+            Log.d("ProductRepository", "Product Name: ${product.name}")
+            Log.d("ProductRepository", "Category ID: ${product.categoryId}")
+
+            // Check if category exists if categoryId is not null
+            if (!product.categoryId.isNullOrBlank()) {
+                val categoryExists = categoryDao.getCategoryById(product.categoryId)
+                Log.d("ProductRepository", "Category exists check: $categoryExists")
+                if (categoryExists == null) {
+                    val errorMsg = "FOREIGN KEY ERROR: Category with ID '${product.categoryId}' does not exist!"
+                    Log.e("ProductRepository", errorMsg)
+                    throw IllegalStateException(errorMsg)
+                }
+            } else {
+                Log.d("ProductRepository", "No category selected (null/blank)")
+            }
+
+            val entity = product.copy(
+                id = if (product.id.isEmpty()) UUID.randomUUID().toString() else product.id,
+                updatedAt = System.currentTimeMillis()
+            ).toEntity()
+
+            Log.d("ProductRepository", "Entity to insert/update - categoryId: ${entity.categoryId}")
+
+            // Check if product already exists
+            val existingProduct = productDao.getProductById(entity.id)
+            if (existingProduct != null) {
+                Log.d("ProductRepository", "Product exists, using UPDATE instead of INSERT REPLACE to avoid FK constraint")
+                // Use UPDATE to avoid REPLACE strategy which triggers DELETE then INSERT
+                // This prevents FOREIGN KEY RESTRICT error from TransactionItems
+                productDao.updateProduct(entity)
+                Log.d("ProductRepository", "Product updated successfully")
+            } else {
+                Log.d("ProductRepository", "New product, using INSERT")
+                productDao.insertProduct(entity)
+                Log.d("ProductRepository", "Product inserted successfully")
+            }
+        } catch (e: Exception) {
+            Log.e("ProductRepository", "Failed to insert/update product: ${e.message}", e)
+            throw e
+        }
     }
 
     override suspend fun updateProduct(product: Product) {
