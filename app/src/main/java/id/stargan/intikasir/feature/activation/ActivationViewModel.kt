@@ -1,5 +1,6 @@
 package id.stargan.intikasir.feature.activation
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +18,8 @@ class ActivationViewModel @Inject constructor(
     private val activationRepository: ActivationRepository
 ) : ViewModel() {
 
+    private val TAG = "ActivationViewModel"
+
     private val _activationState = MutableStateFlow<ActivationState>(ActivationState.Idle)
     val activationState: StateFlow<ActivationState> = _activationState
 
@@ -33,6 +36,7 @@ class ActivationViewModel @Inject constructor(
     val expiryDate: StateFlow<String> = _expiryDate
 
     init {
+        Log.d(TAG, "ViewModel initialized")
         checkActivationStatus()
     }
 
@@ -42,21 +46,26 @@ class ActivationViewModel @Inject constructor(
             return
         }
 
+        Log.d(TAG, "Starting activation with SN: $serialNumber")
         viewModelScope.launch {
             _activationState.value = ActivationState.Loading
 
             val result = activationRepository.activateDevice(serialNumber)
 
             _activationState.value = if (result.isSuccess) {
+                Log.d(TAG, "Activation successful, re-checking status...")
                 checkActivationStatus()
+                Log.d(TAG, "After re-check - isActivated: ${_isActivated.value}")
                 ActivationState.Success(result.getOrNull() ?: "Aktivasi berhasil")
             } else {
+                Log.e(TAG, "Activation failed: ${result.exceptionOrNull()?.message}")
                 ActivationState.Error(result.exceptionOrNull()?.message ?: "Aktivasi gagal")
             }
         }
     }
 
     fun checkActivationStatus() {
+        Log.d(TAG, "Checking activation status...")
         _isActivated.value = activationRepository.isActivated()
         _deviceId.value = activationRepository.getDeviceId()
         _serialNumber.value = activationRepository.getSerialNumber() ?: ""
@@ -68,9 +77,12 @@ class ActivationViewModel @Inject constructor(
         } else {
             "Selamanya"
         }
+
+        Log.d(TAG, "Status check result - Activated: ${_isActivated.value}, SN: ${_serialNumber.value}, Expiry: ${_expiryDate.value}")
     }
 
     fun deactivate() {
+        Log.d(TAG, "Deactivating...")
         activationRepository.deactivate()
         checkActivationStatus()
     }

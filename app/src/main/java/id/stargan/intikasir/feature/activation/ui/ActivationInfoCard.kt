@@ -26,6 +26,18 @@ fun ActivationInfoCard(
 
     var showActivationDialog by remember { mutableStateOf(false) }
 
+    // Re-check activation status when card is displayed
+    LaunchedEffect(Unit) {
+        viewModel.checkActivationStatus()
+    }
+
+    // Re-check after successful activation
+    LaunchedEffect(activationState) {
+        if (activationState is ActivationState.Success) {
+            viewModel.checkActivationStatus()
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(

@@ -199,8 +199,7 @@ fun StoreSettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Activation Info Section
-                ActivationInfoCard()
+
 
                 // Logo Section
                 Card(
@@ -692,6 +691,9 @@ fun StoreSettingsScreen(
                         }
                     }
                 }
+
+                // Activation Info Section
+                ActivationInfoCard()
             }
         }
     }

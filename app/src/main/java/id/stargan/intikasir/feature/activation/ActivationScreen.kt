@@ -37,10 +37,13 @@ fun ActivationScreen(
         }
     }
 
+    // Auto navigate after successful activation
     LaunchedEffect(activationState) {
         if (activationState is ActivationState.Success) {
-            kotlinx.coroutines.delay(1000)
-            viewModel.resetState()
+            // Wait a bit to show success message
+            kotlinx.coroutines.delay(500)
+            // Navigate to app
+            onActivated()
         }
     }
 
