@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Preview
 import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,12 +43,25 @@ fun PrintingSettingsSection(
     onSave: (StoreSettings) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var editMode by remember { mutableStateOf(false) }
+
     var paperWidth by rememberSaveable(settings.paperWidthMm) { mutableStateOf(settings.paperWidthMm) }
     var charPerLine by rememberSaveable(settings.paperCharPerLine) { mutableStateOf(settings.paperCharPerLine) }
     val format = "THERMAL" // lock to thermal only
     var autoCut by rememberSaveable(settings.autoCut) { mutableStateOf(settings.autoCut) }
     var printLogo by rememberSaveable(settings.printLogo) { mutableStateOf(settings.printLogo) }
     var useEscPosDirect by rememberSaveable(settings.useEscPosDirect) { mutableStateOf(settings.useEscPosDirect) }
+
+    // Reset to settings when cancelled
+    LaunchedEffect(editMode) {
+        if (!editMode) {
+            paperWidth = settings.paperWidthMm
+            charPerLine = settings.paperCharPerLine
+            autoCut = settings.autoCut
+            printLogo = settings.printLogo
+            useEscPosDirect = settings.useEscPosDirect
+        }
+    }
 
     // Sample preview data lines (monospaced)
     val previewItems = remember(paperWidth, charPerLine, printLogo) {
@@ -90,177 +106,225 @@ fun PrintingSettingsSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Pengaturan Cetak", style = MaterialTheme.typography.titleMedium)
-            HorizontalDivider()
-
-            // Format info (locked to Thermal)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Format Cetak")
-                AssistChip(onClick = {}, label = { Text("Thermal (aktif)") }, leadingIcon = {
-                    Icon(Icons.Default.CheckCircle, contentDescription = null)
-                }, enabled = false)
-            }
-
-            // Paper width selector
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Lebar Kertas (mm)")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = paperWidth == 58,
-                        onClick = { paperWidth = 58; charPerLine = 32 },
-                        label = { Text("58") },
-                        leadingIcon = if (paperWidth == 58) { { Icon(Icons.Default.Check, contentDescription = null) } } else null
-                    )
-                    FilterChip(
-                        selected = paperWidth == 80,
-                        onClick = { paperWidth = 80; charPerLine = 48 },
-                        label = { Text("80") },
-                        leadingIcon = if (paperWidth == 80) { { Icon(Icons.Default.Check, contentDescription = null) } } else null
-                    )
-                }
-            }
-            // Hint chars per line
-            Text(
-                text = if (paperWidth == 58) "58 mm ≈ 32 karakter per baris" else "80 mm ≈ 48 karakter per baris",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Options
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Auto Cut (jika didukung)")
-                Switch(checked = autoCut, onCheckedChange = { autoCut = it })
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Tampilkan Logo di Struk")
-                Switch(checked = printLogo, onCheckedChange = { printLogo = it })
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Cetak langsung ESC/POS (Bluetooth)")
-                Switch(
-                    checked = useEscPosDirect,
-                    onCheckedChange = { useEscPosDirect = it }
-                )
-            }
-
-
-            // Mini Preview
-            Text("Preview Mini (Thermal)", style = MaterialTheme.typography.titleSmall)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .width(if (paperWidth == 58) 180.dp else 260.dp), // approximate visual width
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    previewItems.forEach { line ->
-                        Text(
-                            text = line,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
-                            maxLines = 1
-                        )
+                Text("Pengaturan Cetak", style = MaterialTheme.typography.titleMedium)
+                if (!editMode) {
+                    TextButton(onClick = { editMode = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Edit")
                     }
                 }
             }
-            Text(
-                text = "Preview ini hanya simulasi layout monospasi berdasarkan jumlah karakter per baris.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            HorizontalDivider()
 
-            // Test print button
-            Button(
-                enabled = !isPrinting,
-                onClick = {
-                    isPrinting = true
-                    try {
-                        if (useEscPosDirect && !settings.printerAddress.isNullOrBlank()) {
-                            val dummyTx = TransactionEntity(
-                                transactionNumber = "DEMO-${System.currentTimeMillis()}",
-                                cashierId = "demo",
-                                cashierName = "Demo",
-                                paymentMethod = PaymentMethod.CASH,
-                                subtotal = 0.0,
-                                tax = 0.0,
-                                total = 0.0,
-                                cashReceived = 0.0,
-                                cashChange = 0.0
+            if (!editMode) {
+                // Display mode - show current settings
+                InfoRow("Format Cetak", "Thermal")
+                InfoRow("Lebar Kertas", "${paperWidth}mm (≈${charPerLine} karakter/baris)")
+                InfoRow("Auto Cut", if (autoCut) "Aktif" else "Nonaktif")
+                InfoRow("Tampilkan Logo", if (printLogo) "Ya" else "Tidak")
+                InfoRow("ESC/POS Bluetooth", if (useEscPosDirect) "Aktif" else "Nonaktif")
+
+                // Mini Preview
+                Text("Preview Mini (Thermal)", style = MaterialTheme.typography.titleSmall)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .width(if (paperWidth == 58) 180.dp else 260.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        previewItems.forEach { line ->
+                            Text(
+                                text = line,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
+                                maxLines = 1
                             )
-                            ESCPosPrinter.printReceipt(
-                                context = context,
-                                settings = settings.copy(
-                                    paperWidthMm = paperWidth,
-                                    paperCharPerLine = charPerLine,
-                                    printLogo = printLogo,
-                                    autoCut = autoCut,
-                                    useEscPosDirect = useEscPosDirect
-                                ),
-                                transaction = dummyTx,
-                                items = emptyList()
-                            )
-                        } else {
-                            // Fallback: tidak perlu PDF, bisa tampilkan pesan
-                            // atau tidak melakukan apa-apa jika ESC/POS tidak aktif
                         }
-                    } catch (_: Exception) {
-                    } finally { isPrinting = false }
+                    }
                 }
-            ) {
-                if (isPrinting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Mencetak...")
-                } else {
-                    Icon(Icons.Default.Print, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Test Print")
-                }
-            }
-            Text(
-                text = "Test Print hanya berfungsi jika ESC/POS Bluetooth aktif dan printer terhubung.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                Text(
+                    text = "Preview ini hanya simulasi layout monospasi berdasarkan jumlah karakter per baris.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            // Save button
-            Button(
-                onClick = {
-                    val updated = settings.copy(
-                        paperWidthMm = paperWidth,
-                        paperCharPerLine = charPerLine,
-                        printFormat = format,
-                        autoCut = autoCut,
-                        printLogo = printLogo,
-                        useEscPosDirect = useEscPosDirect,
-                        updatedAt = System.currentTimeMillis()
+                // Test print button
+                Button(
+                    enabled = !isPrinting,
+                    onClick = {
+                        isPrinting = true
+                        try {
+                            if (useEscPosDirect && !settings.printerAddress.isNullOrBlank()) {
+                                val dummyTx = TransactionEntity(
+                                    transactionNumber = "DEMO-${System.currentTimeMillis()}",
+                                    cashierId = "demo",
+                                    cashierName = "Demo",
+                                    paymentMethod = PaymentMethod.CASH,
+                                    subtotal = 0.0,
+                                    tax = 0.0,
+                                    total = 0.0,
+                                    cashReceived = 0.0,
+                                    cashChange = 0.0
+                                )
+                                ESCPosPrinter.printReceipt(
+                                    context = context,
+                                    settings = settings.copy(
+                                        paperWidthMm = paperWidth,
+                                        paperCharPerLine = charPerLine,
+                                        printLogo = printLogo,
+                                        autoCut = autoCut,
+                                        useEscPosDirect = useEscPosDirect
+                                    ),
+                                    transaction = dummyTx,
+                                    items = emptyList()
+                                )
+                            }
+                        } catch (_: Exception) {
+                        } finally { isPrinting = false }
+                    }
+                ) {
+                    if (isPrinting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Mencetak...")
+                    } else {
+                        Icon(Icons.Default.Print, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Test Print")
+                    }
+                }
+                Text(
+                    text = "Test Print hanya berfungsi jika ESC/POS Bluetooth aktif dan printer terhubung.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                // Edit mode - show controls
+                // Format info (locked to Thermal)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Format Cetak")
+                    AssistChip(onClick = {}, label = { Text("Thermal (aktif)") }, leadingIcon = {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                    }, enabled = false)
+                }
+
+                // Paper width selector
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lebar Kertas (mm)")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = paperWidth == 58,
+                            onClick = { paperWidth = 58; charPerLine = 32 },
+                            label = { Text("58") },
+                            leadingIcon = if (paperWidth == 58) { { Icon(Icons.Default.Check, contentDescription = null) } } else null
+                        )
+                        FilterChip(
+                            selected = paperWidth == 80,
+                            onClick = { paperWidth = 80; charPerLine = 48 },
+                            label = { Text("80") },
+                            leadingIcon = if (paperWidth == 80) { { Icon(Icons.Default.Check, contentDescription = null) } } else null
+                        )
+                    }
+                }
+                Text(
+                    text = if (paperWidth == 58) "58 mm ≈ 32 karakter per baris" else "80 mm ≈ 48 karakter per baris",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Options
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Auto Cut (jika didukung)")
+                    Switch(
+                        checked = autoCut,
+                        onCheckedChange = { autoCut = it }
                     )
-                    onSave(updated)
-                },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(Icons.Default.Check, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Simpan Pengaturan")
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tampilkan Logo di Struk")
+                    Switch(
+                        checked = printLogo,
+                        onCheckedChange = { printLogo = it }
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Cetak langsung ESC/POS (Bluetooth)")
+                    Switch(
+                        checked = useEscPosDirect,
+                        onCheckedChange = { useEscPosDirect = it }
+                    )
+                }
+
+                // Edit mode action buttons
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { editMode = false }) {
+                        Icon(Icons.Default.Close, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Batal")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = {
+                        val updated = settings.copy(
+                            paperWidthMm = paperWidth,
+                            paperCharPerLine = charPerLine,
+                            printFormat = format,
+                            autoCut = autoCut,
+                            printLogo = printLogo,
+                            useEscPosDirect = useEscPosDirect,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        onSave(updated)
+                        editMode = false
+                    }) {
+                        Icon(Icons.Default.Save, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Simpan")
+                    }
+                }
             }
         }
     }
 }
 
 // Helpers -----------------------------------------------------------
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
 private fun centerLine(text: String, width: Int): String {
     if (text.length >= width) return text.take(width)
     val padding = (width - text.length) / 2

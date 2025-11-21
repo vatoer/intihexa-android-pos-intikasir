@@ -153,6 +153,15 @@ object ESCPosPrinter {
         // Header - always print regardless of logo
         alignCenter(); boldOn(); text((settings.storeName.ifBlank { "Toko" }).take(cpl)); boldOff()
         settings.storeAddress.takeIf { it.isNotBlank() }?.let { text(it.take(cpl)) }
+
+        // Custom Receipt Header (if set)
+        settings.receiptHeader?.takeIf { it.isNotBlank() }?.let { header ->
+            text("") // blank line for spacing
+            header.lines().forEach { line ->
+                text(line.take(cpl))
+            }
+        }
+
         divider()
 
         // Transaction Number
@@ -235,6 +244,14 @@ object ESCPosPrinter {
             text("*** BELUM DIBAYAR ***")
             boldOff()
             divider()
+        }
+
+        // Custom Receipt Footer (if set)
+        settings.receiptFooter?.takeIf { it.isNotBlank() }?.let { footer ->
+            footer.lines().forEach { line ->
+                text(line.take(cpl))
+            }
+            text("") // blank line for spacing
         }
 
         alignCenter(); text("Terima kasih")
