@@ -37,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.pos.print.ESCPosPrinter
 import id.stargan.intikasir.util.BluetoothPermissionHelper
 import androidx.compose.ui.unit.dp
+import id.stargan.intikasir.feature.activation.ui.ActivationInfoCard
 import id.stargan.intikasir.feature.settings.ui.components.ReceiptSettingsSection
 import id.stargan.intikasir.feature.settings.ui.components.StoreInfoSection
 
@@ -198,6 +199,9 @@ fun StoreSettingsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
+                // Activation Info Section
+                ActivationInfoCard()
+
                 // Logo Section
                 Card(
                     modifier = Modifier.fillMaxWidth(),

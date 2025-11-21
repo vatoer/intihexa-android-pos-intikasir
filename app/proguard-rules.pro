@@ -19,3 +19,26 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ========== Activation Security ==========
+# Keep security classes but obfuscate their content
+-keep class id.stargan.intikasir.data.security.** { *; }
+-keep class id.stargan.intikasir.data.model.Activation** { *; }
+
+# Obfuscate public key string (make it harder to extract)
+-keepclassmembers class id.stargan.intikasir.data.security.SignatureVerifier {
+    private static final java.lang.String PUBLIC_KEY_BASE64;
+}
+
+# Keep EncryptedSharedPreferences
+-keep class androidx.security.crypto.** { *; }
+-keep class com.google.crypto.tink.** { *; }
+
+# Keep Retrofit for activation API
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn org.codehaus.mojo.animal_sniffer.*
+

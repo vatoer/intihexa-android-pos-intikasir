@@ -107,6 +107,8 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
+    // Security (EncryptedSharedPreferences)
+    implementation(libs.androidx.security.crypto)
 
     // Image cropping
     implementation(libs.ucrop)

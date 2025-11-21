@@ -1,307 +1,232 @@
-# Quick Start Guide - Inti Kasir
+# 🚀 Quick Start Guide - Sistem Aktivasi IntiKasir
 
-## 🚀 Cara Menjalankan Aplikasi
+## Untuk Testing (Development)
 
-### Prerequisites
-1. **Java JDK 11 atau lebih baru**
-   - Download: https://www.oracle.com/java/technologies/downloads/
-   - Atau gunakan: `brew install openjdk@11` (macOS)
-
-2. **Android Studio Hedgehog (2023.1.1) atau lebih baru**
-   - Download: https://developer.android.com/studio
-
-3. **Android SDK API 29+**
-   - Install via Android Studio SDK Manager
-
----
-
-## 📥 Setup Project
-
-### 1. Buka Project
-```bash
-# Navigate ke folder project
-cd /Volumes/X9/intihexa/Android/intihexa-android-pos-intikasir
-
-# Buka di Android Studio
-open -a "Android Studio" .
-```
-
-### 2. Gradle Sync
-- Android Studio akan otomatis detect dan prompt untuk sync
-- Klik **"Sync Now"**
-- Tunggu sampai selesai download dependencies
-
-### 3. Firebase Setup (Optional untuk tahap awal)
-Untuk testing basic UI, Firebase tidak diperlukan. Namun jika ingin setup:
+### 1. Setup Mock Server (5 menit)
 
 ```bash
-# Replace google-services.json dengan file dari Firebase Console
-# Download dari: Firebase Console > Project Settings > Your apps
-cp /path/to/downloaded/google-services.json app/google-services.json
+# Masuk ke folder docs
+cd docs
+
+# Install dependencies
+npm install express body-parser
+
+# Jalankan mock server
+node mock-activation-server.js
 ```
 
----
+Server akan jalan di `http://localhost:3000`
 
-## ▶️ Run Application
+Demo Serial Numbers yang tersedia:
+- `SN-DEMO-00001`
+- `SN-DEMO-00002`
+- `SN-DEMO-00003`
 
-### Menggunakan Emulator
-1. **Buat/Start Emulator:**
-   - Tools → Device Manager
-   - Create Device atau pilih yang sudah ada
-   - Minimum: API 29 (Android 10)
-   - Recommended: API 34 (Android 14)
+### 2. Update Android App (2 menit)
 
-2. **Run App:**
-   - Klik tombol ▶️ **Run** (atau Shift+F10)
-   - Pilih emulator
-   - Tunggu build selesai
+Edit file: `app/src/main/java/id/stargan/intikasir/di/ActivationModule.kt`
 
-### Menggunakan Physical Device
-1. **Enable Developer Options:**
-   - Settings → About Phone
-   - Tap "Build Number" 7x
-   - Back → Developer Options
-   - Enable "USB Debugging"
-
-2. **Connect via USB:**
-   - Hubungkan device ke komputer
-   - Allow USB debugging prompt
-
-3. **Run App:**
-   - Klik ▶️ Run
-   - Pilih your device
-
----
-
-## 🎨 Apa yang Akan Terlihat
-
-Saat ini aplikasi akan menampilkan:
-
-### POS Screen (Main Screen)
-```
-┌─────────────────────────────────────────────────────────┐
-│  Inti Kasir - POS                              ☰        │
-├────────────────────────────────┬────────────────────────┤
-│  🔍 Cari produk...             │  Keranjang (0 item)    │
-├────────────────────────────────┤                        │
-│  [ Semua ] [ 🍔 Makanan ]      │                        │
-│  [ 🥤 Minuman ] [ 🍿 Snack ]   │  (Empty state)         │
-│                                │                        │
-│  ┌──────┐  ┌──────┐  ┌──────┐ │                        │
-│  │ Nasi │  │ Mie  │  │ Es   │ │  ──────────────────    │
-│  │Goreng│  │Goreng│  │ Teh  │ │  Subtotal   Rp 0       │
-│  │      │  │      │  │      │ │  Pajak(10%) Rp 0       │
-│  │15,000│  │12,000│  │3,000 │ │  ──────────────────    │
-│  │      │  │      │  │      │ │  TOTAL      Rp 0       │
-│  └──────┘  └──────┘  └──────┘ │                        │
-│  ┌──────┐  ┌──────┐           │  ┌──────────────────┐  │
-│  │ Kopi │  │Keripik│           │  │   🛒 BAYAR      │  │
-│  │      │  │      │            │  └──────────────────┘  │
-│  │5,000 │  │8,000 │            │                        │
-│  └──────┘  └──────┘            │                        │
-└────────────────────────────────┴────────────────────────┘
-```
-
-### Fitur yang Berfungsi:
-- ✅ Klik produk untuk tambah ke cart
-- ✅ Quantity controls (+/-)
-- ✅ Remove item dari cart
-- ✅ Real-time calculation (subtotal, tax, total)
-- ✅ Search bar (UI only, belum functional)
-- ✅ Category filter (UI only)
-
-### Fitur yang Belum Berfungsi:
-- ❌ Checkout/payment (button disabled)
-- ❌ Data persistence (masih dummy data)
-- ❌ Search functionality
-- ❌ Category filtering
-- ❌ Login system
-
----
-
-## 🔧 Development Mode
-
-### Lihat Database (Room Inspector)
-1. Run app di emulator/device
-2. Tools → App Inspection
-3. Pilih tab "Database Inspector"
-4. Explore tables (User, Product, Transaction, dll)
-
-### Lihat Logcat
-1. View → Tool Windows → Logcat
-2. Filter by: `id.stargan.intikasir`
-
-### Debug Mode
-1. Set breakpoint di code
-2. Run → Debug 'app' (atau Shift+F9)
-3. Step through code
-
----
-
-## 📝 Testing Basic Features
-
-### Test 1: Add Product to Cart
-1. Klik salah satu product card
-2. Product akan muncul di cart panel (kanan)
-3. Klik lagi untuk increase quantity
-4. Lihat subtotal & total update otomatis
-
-### Test 2: Modify Cart
-1. Klik tombol `-` untuk kurangi quantity
-2. Quantity akan berkurang
-3. Klik tombol `🗑️` untuk hapus item
-4. Item akan hilang dari cart
-
-### Test 3: Tax Calculation
-1. Add beberapa products ke cart
-2. Perhatikan:
-   - Subtotal = sum of all items
-   - Tax = 10% dari subtotal
-   - Total = subtotal + tax
-
----
-
-## 🐛 Troubleshooting
-
-### Error: "Unable to locate a Java Runtime"
-**Solution:**
-```bash
-# Install Java JDK
-brew install openjdk@11
-
-# Set JAVA_HOME
-export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-```
-
-### Error: "SDK location not found"
-**Solution:**
-1. Buka Android Studio
-2. File → Project Structure → SDK Location
-3. Set Android SDK location (biasanya: ~/Library/Android/sdk)
-
-### Error: "Unresolved reference"
-**Solution:**
-1. File → Invalidate Caches → Invalidate and Restart
-2. Atau: Build → Clean Project
-3. Lalu: Build → Rebuild Project
-
-### Error: "Failed to resolve: com.google.firebase"
-**Solution:**
+Ubah BASE_URL ke localhost:
 ```kotlin
-// Sementara comment plugins Firebase di build.gradle.kts
-// alias(libs.plugins.google.services) apply false
-
-// Dan di app/build.gradle.kts
-// alias(libs.plugins.google.services)
+// Line 31
+private const val BASE_URL = "http://10.0.2.2:3000/" // untuk emulator
+// atau
+private const val BASE_URL = "http://192.168.1.xxx:3000/" // untuk real device
 ```
 
-### Gradle Sync Error
-**Solution:**
-1. Tools → SDK Manager → SDK Tools
-2. Install:
-   - Android SDK Build-Tools
-   - Android SDK Platform-Tools
-   - Android SDK Tools
-3. Sync again
+### 3. Build & Install
 
----
-
-## 🎯 Next Steps for Development
-
-### Immediate Next Steps:
-1. **Implement Repositories**
-   ```kotlin
-   // Create ProductRepository
-   interface ProductRepository {
-       fun getAllProducts(): Flow<List<Product>>
-       suspend fun getProductById(id: String): Product?
-   }
-   ```
-
-2. **Create PosViewModel**
-   ```kotlin
-   @HiltViewModel
-   class PosViewModel @Inject constructor(
-       private val productRepository: ProductRepository
-   ) : ViewModel() {
-       // Implement business logic
-   }
-   ```
-
-3. **Connect ViewModel to UI**
-   ```kotlin
-   @Composable
-   fun PosScreen(viewModel: PosViewModel = hiltViewModel()) {
-       val uiState by viewModel.uiState.collectAsState()
-       // Use real data
-   }
-   ```
-
-### Files to Create Next:
-```
-domain/repository/
-├── ProductRepository.kt
-├── CategoryRepository.kt
-└── TransactionRepository.kt
-
-data/repository/
-├── ProductRepositoryImpl.kt
-├── CategoryRepositoryImpl.kt
-└── TransactionRepositoryImpl.kt
-
-data/mapper/
-├── ProductMapper.kt
-├── CategoryMapper.kt
-└── TransactionMapper.kt
-
-ui/screen/pos/
-└── PosViewModel.kt
+```bash
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
----
+### 4. Test Flow
 
-## 📚 Resources
-
-### Documentation
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [PAYMENT_FLOW.md](PAYMENT_FLOW.md) - Payment flow logic
-- [FIREBASE_SETUP.md](FIREBASE_SETUP.md) - Firebase setup guide
-- [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - What's implemented
-
-### External Resources
-- [Jetpack Compose](https://developer.android.com/jetpack/compose)
-- [Material 3](https://m3.material.io/)
-- [Room Database](https://developer.android.com/training/data-storage/room)
-- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android)
-- [Kotlin Coroutines](https://kotlinlang.org/docs/coroutines-overview.html)
+1. **Buka app** → Muncul Activation Screen
+2. **Lihat Device ID** (catat atau screenshot)
+3. **Input Serial Number**: `SN-DEMO-00001`
+4. **Klik Aktivasi**
+5. **Tunggu** → Success!
+6. **Restart app** → Langsung masuk (skip activation)
+7. **Buka Settings** → Lihat status aktivasi
 
 ---
 
-## 💡 Tips
+## Untuk Production
 
-1. **Hot Reload**: Compose preview updates automatically
-2. **Live Edit**: Enable in Android Studio for instant UI updates
-3. **Compose Preview**: Use `@Preview` annotation untuk preview composables
-4. **Database Inspector**: Best untuk debug Room database
-5. **Layout Inspector**: Tools → Layout Inspector untuk inspect UI hierarchy
+### 1. Generate Production Keys (10 menit)
+
+```bash
+cd docs
+chmod +x generate-keys.sh
+./generate-keys.sh
+```
+
+Catat output Base64 public key!
+
+### 2. Update Android App
+
+**File 1**: `app/src/main/java/id/stargan/intikasir/data/security/SignatureVerifier.kt`
+
+Ganti public key (line 16-20):
+```kotlin
+private const val PUBLIC_KEY_BASE64 = """
+[PASTE_YOUR_BASE64_PUBLIC_KEY_HERE]
+"""
+```
+
+**File 2**: `app/src/main/java/id/stargan/intikasir/di/ActivationModule.kt`
+
+Ganti BASE_URL (line 31):
+```kotlin
+private const val BASE_URL = "https://activation.yourdomain.com/"
+```
+
+### 3. Setup Production Server (30 menit)
+
+```bash
+# Clone/copy server example
+cd docs/server-example
+
+# Install dependencies
+npm install
+
+# Setup database
+createdb intikasir_activation
+psql intikasir_activation < schema.sql
+
+# Copy private key
+mkdir keys
+cp ../activation-keys/private_key.pem keys/
+
+# Configure environment
+cp .env.example .env
+nano .env  # Edit DB credentials
+
+# Start server
+npm start
+```
+
+### 4. Generate Serial Numbers
+
+```bash
+curl -X POST http://localhost:3000/admin/generate-sn \
+  -H "Content-Type: application/json" \
+  -d '{"tier": "basic", "count": 10}'
+```
+
+### 5. Build Production APK
+
+```bash
+# Build release APK
+./gradlew assembleRelease
+
+# Sign APK (jika belum)
+jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+  -keystore your-keystore.jks \
+  app/build/outputs/apk/release/app-release-unsigned.apk \
+  your-alias
+
+# Verify
+jarsigner -verify -verbose -certs app-release.apk
+```
 
 ---
 
-## ✅ Checklist Setup
+## Troubleshooting Cepat
 
-- [ ] Java JDK installed
-- [ ] Android Studio installed
-- [ ] Project opened in Android Studio
-- [ ] Gradle sync successful
-- [ ] Emulator/device ready
-- [ ] App running successfully
-- [ ] Can see POS screen
-- [ ] Can add products to cart
-- [ ] Calculations working
+### ❌ "Gagal menghubungi server"
+**Solusi**:
+- Pastikan mock server jalan
+- Untuk emulator gunakan `10.0.2.2` bukan `localhost`
+- Untuk real device gunakan IP komputer
+- Check firewall
+
+### ❌ "Signature tidak valid"
+**Solusi**:
+- Pastikan public key di Android sama dengan private key di server
+- Re-generate keys jika perlu
+- Restart server setelah ganti key
+
+### ❌ "Serial Number tidak valid"
+**Solusi**:
+- Gunakan Serial Number yang benar
+- Check di server logs
+- Generate SN baru jika perlu
+
+### ❌ Build error "Unresolved reference security"
+**Solusi**:
+```bash
+./gradlew --stop
+./gradlew clean build
+```
 
 ---
 
-**Happy Coding! 🚀**
+## Test Checklist
 
-Jika ada pertanyaan atau masalah, cek dokumentasi atau buat issue.
+- [ ] Mock server berjalan
+- [ ] App bisa compile
+- [ ] Activation screen muncul
+- [ ] Device ID ditampilkan
+- [ ] Bisa input Serial Number
+- [ ] Aktivasi berhasil
+- [ ] Navigasi ke login
+- [ ] Restart → skip activation
+- [ ] Settings menampilkan status
+- [ ] Dialog aktivasi di Settings works
+
+---
+
+## URLs Penting
+
+### Development
+- Mock Server: `http://localhost:3000`
+- Health Check: `http://localhost:3000/api/health`
+- Admin Panel: `http://localhost:3000/admin/activations`
+
+### Production
+- API: `https://activation.yourdomain.com/api/activate`
+- Health: `https://activation.yourdomain.com/api/health`
+
+---
+
+## Support Commands
+
+```bash
+# Check mock server
+curl http://localhost:3000/api/health
+
+# List activations
+curl http://localhost:3000/admin/activations
+
+# Generate SN
+curl -X POST http://localhost:3000/admin/generate-sn \
+  -H "Content-Type: application/json" \
+  -d '{"tier": "basic", "count": 1}'
+
+# Test activation
+curl -X POST http://localhost:3000/api/activate \
+  -H "Content-Type: application/json" \
+  -d '{"serialNumber": "SN-DEMO-00001", "deviceId": "test-device-123"}'
+```
+
+---
+
+## Next Steps
+
+Setelah testing berhasil:
+
+1. ✅ Deploy server ke production dengan SSL
+2. ✅ Update BASE_URL di app
+3. ✅ Build production APK
+4. ✅ Distribute to users
+5. ✅ Monitor activation logs
+
+---
+
+**Total waktu setup**: ~15 menit untuk development, ~1 jam untuk production
+
+**Support**: Lihat dokumentasi lengkap di folder `docs/`
 

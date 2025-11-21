@@ -25,6 +25,7 @@ ucrop = "2.2.8"
 coil = "2.7.0"
 detekt = "1.23.6"
 ktlintGradle = "12.1.0"
+security = "1.1.0-alpha06"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -95,6 +96,9 @@ vico-core = { group = "com.patrykandpatrick.vico", name = "core", version.ref = 
 
 # uCrop
 ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
+
+# Security
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
