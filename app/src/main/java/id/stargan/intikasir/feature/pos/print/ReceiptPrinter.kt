@@ -193,41 +193,31 @@ object ReceiptPrinter {
             val qty = "${item.quantity}"
             val sub = nf.format(item.subtotal).replace("Rp", "Rp ")
 
-            // If item has discount, show original price with strikethrough
+            // Product name
+            canvas.drawText(name, xPadding, y, normalPaint)
+            y += 18f
+
             if (item.discount > 0) {
-                val originalPrice = item.productPrice
-                val discountedPrice = item.unitPrice
+                // Item with discount
+                val discountPerUnit = item.discount / item.quantity
+                val priceAfterDisc = item.productPrice - discountPerUnit
 
-                // Name
-                canvas.drawText(name, xPadding, y, normalPaint)
-                canvas.drawText(qty, qtyColumnX, y, normalPaint)
-
-                // Original price with strikethrough
-                val origPriceStr = nf.format(originalPrice).replace("Rp", "Rp ")
-                canvas.drawText(origPriceStr, priceColumnX, y, normalPaint)
-                val textWidth = normalPaint.measureText(origPriceStr)
-                val lineY = y - 4f
-                canvas.drawLine(priceColumnX, lineY, priceColumnX + textWidth, lineY, normalPaint)
-
+                // Line: Qty x Price After Discount = Subtotal
+                val qtyPriceStr = "$qty x ${nf.format(priceAfterDisc).replace("Rp", "Rp ")}"
+                canvas.drawText(qtyPriceStr, xPadding + 20f, y, normalPaint)
                 canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
-                y += 18f
+                y += 16f
 
-                // Discounted price line
-                val discPriceStr = nf.format(discountedPrice).replace("Rp", "Rp ")
-                canvas.drawText("Harga diskon: $discPriceStr", xPadding + 20f, y, smallPaint)
-                y += 14f
-
-                // Discount amount
-                val discPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
-                canvas.drawText(discPart, xPadding + 20f, y, smallPaint)
+                // Discount info (smaller, indented)
+                val discLabel = "(Disc ${nf.format(discountPerUnit).replace("Rp", "Rp ")}/pcs)"
+                canvas.drawText(discLabel, xPadding + 20f, y, smallPaint)
                 y += 18f
             } else {
                 // No discount - simple format
                 val price = nf.format(item.unitPrice).replace("Rp", "Rp ")
+                val qtyPriceStr = "$qty x $price"
 
-                canvas.drawText(name, xPadding, y, normalPaint)
-                canvas.drawText(qty, qtyColumnX, y, normalPaint)
-                canvas.drawText(price, priceColumnX, y, normalPaint)
+                canvas.drawText(qtyPriceStr, xPadding + 20f, y, normalPaint)
                 canvas.drawText(sub, pageInfo.pageWidth - xPadding - normalPaint.measureText(sub), y, normalPaint)
                 y += 18f
             }
@@ -487,37 +477,26 @@ object ReceiptPrinter {
         // Items
         items.forEach { item ->
             // Product name
-            val name = item.productName.take(charsPerLine - 12)  // Leave space for amount
+            val name = item.productName.take(charsPerLine - 12)
             canvas.drawText(name, left, y, textPaint)
             y += 16f
             
-            // If item has discount, show original price with strikethrough
             if (item.discount > 0) {
-                val originalPrice = item.productPrice
+                // Item with discount
                 val discountPerUnit = item.discount / item.quantity
-                val discountedPricePerUnit = originalPrice - discountPerUnit
+                val priceAfterDisc = item.productPrice - discountPerUnit
 
-                val origPriceStr = "@${nf.format(originalPrice).replace("Rp", "Rp ")}/pcs"
-                canvas.drawText(origPriceStr, left + 8f, y, smallPaint)
-
-                // Draw strikethrough line
-                val textWidth = smallPaint.measureText(origPriceStr)
-                val lineY = y - 4f
-                canvas.drawLine(left + 8f, lineY, left + 8f + textWidth, lineY, smallPaint)
-                y += 14f
-
-                // Quantity x discounted price per unit = subtotal
-                val qtyPart = "${item.quantity} x ${nf.format(discountedPricePerUnit).replace("Rp", "Rp ")}"
+                // Line: Qty x Price After Discount = Subtotal
+                val qtyPart = "${item.quantity} x ${nf.format(priceAfterDisc).replace("Rp", "Rp ")}"
                 val subPart = nf.format(item.subtotal).replace("Rp", "Rp ")
                 canvas.drawText(qtyPart, left + 8f, y, smallPaint)
-                // Right align subtotal at the amount column
                 canvas.drawText(subPart, right - smallPaint.measureText(subPart), y, textPaint)
-                y += 18f
+                y += 14f
 
-                // Total discount amount
-                val discountPart = "Diskon: -${nf.format(item.discount).replace("Rp", "Rp ")}"
-                canvas.drawText(discountPart, left + 8f, y, smallPaint)
-                y += 16f
+                // Discount info (smaller, indented)
+                val discLabel = "(Disc ${nf.format(discountPerUnit).replace("Rp", "Rp ")}/pcs)"
+                canvas.drawText(discLabel, left + 8f, y, smallPaint)
+                y += 18f
             } else {
                 // No discount - simple format
                 val qtyPart = "${item.quantity} x ${nf.format(item.unitPrice).replace("Rp", "Rp ")}"
@@ -540,9 +519,12 @@ object ReceiptPrinter {
         }
         
         drawTotal("Subtotal", transaction.subtotal, textPaint)
-        if (transaction.tax > 0) drawTotal("PPN", transaction.tax, textPaint)
         if (transaction.discount > 0) drawTotal("Diskon", transaction.discount, textPaint, negative = true)
-        
+        if (transaction.tax > 0) {
+            val taxLabel = "${settings?.taxName ?: "PPN"} ${settings?.taxPercentage?.toInt() ?: ""}%"
+            drawTotal(taxLabel.trim(), transaction.tax, textPaint)
+        }
+
         y += 4f
         drawLine(bold = true)
         
@@ -559,24 +541,12 @@ object ReceiptPrinter {
         drawLine()
 
         // Payment info
-        val paymentMethodName = when (transaction.paymentMethod.name) {
-            "CASH" -> "Tunai"
-            "DEBIT" -> "Debit"
-            "CREDIT" -> "Kredit"
-            "QRIS" -> "QRIS"
-            "TRANSFER" -> "Transfer"
-            else -> transaction.paymentMethod.name
-        }
-        canvas.drawText("Metode: $paymentMethodName", left, y, textPaint)
-        y += 18f
-        
         val received = transaction.cashReceived
         if (received > 0) {
+            y += 4f
             val change = (received - transaction.total).coerceAtLeast(0.0)
-            drawTotal("Dibayar", received, textPaint)
-            if (change > 0) {
-                drawTotal("Kembali", change, boldPaint)
-            }
+            drawTotal("Tunai", received, textPaint)
+            drawTotal("Kembali", change, textPaint)
         }
         
         y += 8f

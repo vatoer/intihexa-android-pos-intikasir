@@ -189,31 +189,27 @@ object ESCPosPrinter {
             // Product name
             text(itx.productName.take(cpl))
 
-            // If item has discount, show original price and discounted price per unit
+            // Calculate spacing for price alignment
             if (itx.discount > 0) {
-                val originalPrice = itx.productPrice
+                // Item with discount - show quantity, discounted price, and subtotal
                 val discountPerUnit = itx.discount / itx.quantity
-                val discountedPricePerUnit = originalPrice - discountPerUnit
+                val priceAfterDisc = itx.productPrice - discountPerUnit
 
-                // Original price (with @ prefix to indicate strikethrough)
-                val origPriceStr = "@${nf.format(originalPrice).replace("Rp", "Rp ")}/pcs"
-                text("  $origPriceStr")
+                // Line 1: Qty x Price After Discount = Subtotal
+                val qtyPrice = "  ${itx.quantity} x ${nf.format(priceAfterDisc).replace("Rp", "Rp")}"
+                val subtotal = nf.format(itx.subtotal).replace("Rp", "Rp")
+                val pad1 = (cpl - qtyPrice.length - subtotal.length).coerceAtLeast(1)
+                text(qtyPrice + " ".repeat(pad1) + subtotal)
 
-                // Quantity x discounted price per unit = subtotal
-                val qty = "${itx.quantity} x ${nf.format(discountedPricePerUnit).replace("Rp", "Rp ")}"
-                val sub = nf.format(itx.subtotal).replace("Rp", "Rp ")
-                val pad = (cpl - qty.length - sub.length).coerceAtLeast(1)
-                text(qty + " ".repeat(pad) + sub)
-
-                // Total discount for all units
-                val discountStr = "  Diskon: -${nf.format(itx.discount).replace("Rp", "Rp ")}"
-                text(discountStr)
+                // Line 2: Discount info (smaller, indented)
+                val discLabel = "  (Disc ${nf.format(discountPerUnit).replace("Rp", "Rp")}/pcs)"
+                text(discLabel)
             } else {
-                // No discount - simple format
-                val qty = "${itx.quantity} x ${nf.format(itx.unitPrice).replace("Rp", "Rp ")}"
-                val sub = nf.format(itx.subtotal).replace("Rp", "Rp ")
-                val pad = (cpl - qty.length - sub.length).coerceAtLeast(1)
-                text(qty + " ".repeat(pad) + sub)
+                // Item without discount - simple format
+                val qtyPrice = "  ${itx.quantity} x ${nf.format(itx.unitPrice).replace("Rp", "Rp")}"
+                val subtotal = nf.format(itx.subtotal).replace("Rp", "Rp")
+                val pad = (cpl - qtyPrice.length - subtotal.length).coerceAtLeast(1)
+                text(qtyPrice + " ".repeat(pad) + subtotal)
             }
         }
         divider()
@@ -223,16 +219,31 @@ object ESCPosPrinter {
             text(label + " ".repeat(pad) + value)
         }
 
-        totalLine("Subtotal", nf.format(transaction.subtotal).replace("Rp", "Rp "))
-        if (transaction.tax > 0) totalLine("PPN", nf.format(transaction.tax).replace("Rp", "Rp "))
-        if (transaction.discount > 0) totalLine("Diskon", "-" + nf.format(transaction.discount).replace("Rp", "Rp "))
-        boldOn(); totalLine("TOTAL", nf.format(transaction.total).replace("Rp", "Rp ")); boldOff()
+        // Summary
+        totalLine("Subtotal", nf.format(transaction.subtotal).replace("Rp", "Rp"))
 
+        // Show discount if any
+        if (transaction.discount > 0) {
+            totalLine("Diskon", "-${nf.format(transaction.discount).replace("Rp", "Rp")}")
+        }
+
+        // Show tax if any
+        if (transaction.tax > 0) {
+            totalLine("${settings.taxName} ${settings.taxPercentage.toInt()}%", nf.format(transaction.tax).replace("Rp", "Rp"))
+        }
+
+        divider()
+        boldOn()
+        totalLine("TOTAL", nf.format(transaction.total).replace("Rp", "Rp"))
+        boldOff()
+
+        // Payment info (if cash payment)
         val received = transaction.cashReceived
         if (received > 0) {
-            totalLine("Tunai", nf.format(received).replace("Rp", "Rp "))
+            text("") // blank line
+            totalLine("Tunai", nf.format(received).replace("Rp", "Rp"))
             val change = (received - transaction.total).coerceAtLeast(0.0)
-            totalLine("Kembali", nf.format(change).replace("Rp", "Rp "))
+            totalLine("Kembali", nf.format(change).replace("Rp", "Rp"))
         }
 
         divider()

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionStatus
+import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import id.stargan.intikasir.feature.pos.ui.receipt.components.ReceiptSuccessHeader
 import id.stargan.intikasir.ui.common.components.*
 import kotlinx.coroutines.delay
@@ -34,6 +35,12 @@ fun ReceiptScreen(
     paymentMethod: String,
     globalDiscount: Double = 0.0,
     transactionStatus: TransactionStatus = TransactionStatus.PAID,
+    // Breakdown parameters for OrderSummaryCard
+    grossSubtotal: Double = total,
+    itemDiscount: Double = 0.0,
+    netSubtotal: Double = total - globalDiscount,
+    taxRate: Double = 0.0,
+    taxAmount: Double = 0.0,
     onFinish: () -> Unit,
     onPrint: (onResult: (Boolean, String) -> Unit) -> Unit,
     onPrintQueue: (onResult: (Boolean, String) -> Unit) -> Unit,
@@ -53,9 +60,9 @@ fun ReceiptScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pembayaran Berhasil") },
+                title = { Text("Struk Pembayaran") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -75,54 +82,99 @@ fun ReceiptScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
-            // Receipt details
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Order Summary - menggunakan OrderSummaryCard yang sudah ada
+            OrderSummaryCard(
+                grossSubtotal = grossSubtotal,
+                itemDiscount = itemDiscount,
+                netSubtotal = netSubtotal,
+                taxRate = taxRate,
+                taxAmount = taxAmount,
+                globalDiscount = globalDiscount,
+                total = total,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Payment Info Card (hanya untuk CASH)
+            if (paymentMethod == "CASH" && cashReceived > 0) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
                 ) {
-                    Text("Detail Pembayaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            "Pembayaran Tunai",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        HorizontalDivider()
 
-                    HorizontalDivider()
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Metode Pembayaran")
-                        Text(paymentMethod, fontWeight = FontWeight.Bold)
-                    }
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Belanja")
-                        Text(nf.format(total).replace("Rp", "Rp "), fontWeight = FontWeight.Bold)
-                    }
-
-                    if (globalDiscount > 0) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Diskon Global")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Tunai Diterima", style = MaterialTheme.typography.bodySmall)
                             Text(
-                                "- ${nf.format(globalDiscount).replace("Rp", "Rp ")}",
-                                color = MaterialTheme.colorScheme.error
+                                nf.format(cashReceived).replace("Rp", "Rp "),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Kembalian",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                nf.format(cashChange).replace("Rp", "Rp "),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
+                }
+            } else {
+                // Non-cash payment method info
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            "Metode Pembayaran",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        HorizontalDivider()
 
-                    if (paymentMethod == "CASH" && cashReceived > 0) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Tunai Diterima")
-                            Text(nf.format(cashReceived).replace("Rp", "Rp "))
-                        }
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Kembalian")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Dibayar dengan", style = MaterialTheme.typography.bodySmall)
                             Text(
-                                nf.format(cashChange).replace("Rp", "Rp "),
-                                color = MaterialTheme.colorScheme.primary,
+                                paymentMethod,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
                         }

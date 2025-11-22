@@ -155,31 +155,6 @@ fun PosProductItemReactive(
             title = { Text("Diskon per Pcs") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Info produk
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                product.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "Harga: ${nf.format(product.price).replace("Rp", "Rp ")}/pcs",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                "Quantity: ${transactionItem.quantity} pcs",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
 
                     // Input diskon per pcs
                     OutlinedTextField(
@@ -213,13 +188,14 @@ fun PosProductItemReactive(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                "Preview:",
+                                "${product.name}: ${transactionItem.quantity} pcs",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
 
                             val priceAfterDiscount = product.price - discountPerUnit
                             val subtotal = priceAfterDiscount * transactionItem.quantity
+
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

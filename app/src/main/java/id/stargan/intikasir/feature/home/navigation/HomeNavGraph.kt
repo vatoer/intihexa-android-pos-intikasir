@@ -359,14 +359,28 @@ fun NavGraphBuilder.homeNavGraph(
             viewModel.loadTransaction(transactionId)
         }
 
+        // Calculate breakdown for OrderSummaryCard
+        val grossSubtotal = state.transactionItems.sumOf { it.quantity * it.productPrice }
+        val itemDiscount = state.transactionItems.sumOf { it.discount }
+        val netSubtotal = state.transaction?.subtotal ?: 0.0
+        val taxAmount = state.transaction?.tax ?: 0.0
+        val taxRate = if (netSubtotal > 0 && taxAmount > 0) taxAmount / netSubtotal else 0.0
+        val globalDiscount = state.transaction?.discount ?: 0.0
+
         ReceiptScreen(
             transactionNumber = state.transaction?.transactionNumber ?: "INV-XXXXX",
             total = state.total,
             cashReceived = state.transaction?.cashReceived ?: 0.0,
             cashChange = state.transaction?.cashChange ?: 0.0,
             paymentMethod = state.paymentMethod.name,
-            globalDiscount = state.transaction?.discount ?: 0.0,
+            globalDiscount = globalDiscount,
             transactionStatus = state.transaction?.status ?: TransactionStatus.PAID,
+            // Breakdown parameters for OrderSummaryCard
+            grossSubtotal = grossSubtotal,
+            itemDiscount = itemDiscount,
+            netSubtotal = netSubtotal,
+            taxRate = taxRate,
+            taxAmount = taxAmount,
             onFinish = {
                 navController.navigate(HomeRoutes.HOME) {
                     popUpTo(HomeRoutes.HOME) { inclusive = false }
