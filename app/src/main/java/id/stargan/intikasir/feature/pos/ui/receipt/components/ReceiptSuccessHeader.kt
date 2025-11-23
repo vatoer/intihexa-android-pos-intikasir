@@ -12,8 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionStatus
-import java.text.SimpleDateFormat
-import java.util.Date
+import id.stargan.intikasir.util.DateFormatUtils
 import java.util.Locale
 
 /**
@@ -26,8 +25,7 @@ fun ReceiptSuccessHeader(
     transactionStatus: TransactionStatus,
     modifier: Modifier = Modifier
 ) {
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.Builder().setLanguage("id").setRegion("ID").build())
-    val currentDate = dateFormat.format(Date())
+    val currentDate = DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), "dd MMM yyyy, HH:mm")
     val isCompleted = transactionStatus == TransactionStatus.COMPLETED
 
     Card(
@@ -115,4 +113,3 @@ fun ReceiptSuccessHeader(
         }
     }
 }
-

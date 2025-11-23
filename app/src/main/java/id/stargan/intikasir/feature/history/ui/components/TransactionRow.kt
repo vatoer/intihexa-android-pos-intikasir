@@ -9,8 +9,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
+import java.util.Locale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
@@ -21,7 +21,6 @@ import java.util.UUID
 fun TransactionRow(
     tx: TransactionEntity,
     currency: NumberFormat,
-    dateFormatter: SimpleDateFormat,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -33,7 +32,7 @@ fun TransactionRow(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(tx.transactionNumber, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(dateFormatter.format(Date(tx.updatedAt)), style = MaterialTheme.typography.bodySmall)
+                Text(DateFormatUtils.formatEpochMillis(tx.updatedAt, "dd MMM yyyy, HH:mm"), style = MaterialTheme.typography.bodySmall)
                 Text("Kasir: ${tx.cashierName}", style = MaterialTheme.typography.bodySmall)
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -107,7 +106,6 @@ private fun TransactionRowPreview() {
                 updatedAt = System.currentTimeMillis()
             ),
             currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 },
-            dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")),
             onClick = {}
         )
     }
@@ -136,7 +134,6 @@ private fun TransactionRowLargeAmountPreview() {
                 updatedAt = System.currentTimeMillis()
             ),
             currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 },
-            dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")),
             onClick = {}
         )
     }

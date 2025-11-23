@@ -1,12 +1,17 @@
 package id.stargan.intikasir.feature.reports.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import id.stargan.intikasir.feature.reports.domain.model.*
+import id.stargan.intikasir.feature.reports.domain.model.PeriodType
+import id.stargan.intikasir.feature.reports.domain.model.ReportDashboard
+import id.stargan.intikasir.feature.reports.domain.model.ProfitLossReport
+import id.stargan.intikasir.feature.reports.domain.model.WorstProductsReport
+import id.stargan.intikasir.feature.reports.domain.usecase.ExportReportUseCase
 import id.stargan.intikasir.feature.reports.domain.usecase.GetDashboardDataUseCase
 import id.stargan.intikasir.feature.reports.domain.usecase.GetProfitLossReportUseCase
-import id.stargan.intikasir.feature.reports.domain.usecase.ExportReportUseCase
+import id.stargan.intikasir.feature.reports.domain.usecase.GetWorstSellingProductsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +24,8 @@ import javax.inject.Inject
 class ReportsViewModel @Inject constructor(
     private val getDashboardDataUseCase: GetDashboardDataUseCase,
     private val getProfitLossReportUseCase: GetProfitLossReportUseCase,
-    private val exportReportUseCase: ExportReportUseCase
+    private val exportReportUseCase: ExportReportUseCase,
+    private val getWorstSellingProductsUseCase: GetWorstSellingProductsUseCase
 ) : ViewModel() {
 
     data class UiState(
@@ -29,6 +35,9 @@ class ReportsViewModel @Inject constructor(
 
         val dashboard: ReportDashboard? = null,
         val profitLossReport: ProfitLossReport? = null,
+        val worstProductsReport: WorstProductsReport? = null,
+        val dashboardRevenueChange: Double? = null,
+        val cashierIdFilter: String? = null,
 
         val selectedTab: ReportTab = ReportTab.DASHBOARD,
 
@@ -49,6 +58,10 @@ class ReportsViewModel @Inject constructor(
 
     fun onEvent(event: ReportsEvent) {
         when (event) {
+            is ReportsEvent.SetCashierFilter -> {
+                _uiState.update { it.copy(cashierIdFilter = event.cashierId) }
+                loadData()
+            }
             is ReportsEvent.SelectPeriod -> selectPeriod(event.period)
             is ReportsEvent.SelectCustomPeriod -> selectCustomPeriod(event.startDate, event.endDate)
             is ReportsEvent.SelectTab -> selectTab(event.tab)
@@ -59,6 +72,7 @@ class ReportsViewModel @Inject constructor(
             is ReportsEvent.Refresh -> loadData()
             is ReportsEvent.DismissError -> _uiState.update { it.copy(error = null) }
             is ReportsEvent.DismissSuccess -> _uiState.update { it.copy(successMessage = null) }
+            is ReportsEvent.LoadWorstProducts -> loadWorstProducts(event.lowThreshold)
         }
     }
 
@@ -108,12 +122,29 @@ class ReportsViewModel @Inject constructor(
 
                 val dashboard = getDashboardDataUseCase(
                     _uiState.value.startDate,
-                    _uiState.value.endDate
+                    _uiState.value.endDate,
+                    _uiState.value.cashierIdFilter
                 )
+
+                // Compute previous period range by using the same length and shifting before startDate
+                val (prevStart, prevEnd) = computePreviousRange(_uiState.value.startDate, _uiState.value.endDate)
+                var prevDashboard: ReportDashboard? = null
+                try {
+                    prevDashboard = getDashboardDataUseCase(prevStart, prevEnd, _uiState.value.cashierIdFilter)
+                } catch (_: Exception) {
+                    // If previous period fetch fails, leave prevDashboard as null and continue
+                }
+
+                val revenueChange = if (prevDashboard != null) {
+                    dashboard.totalRevenue - prevDashboard.totalRevenue
+                } else {
+                    null
+                }
 
                 _uiState.update {
                     it.copy(
                         dashboard = dashboard,
+                        dashboardRevenueChange = revenueChange,
                         isLoading = false
                     )
                 }
@@ -153,6 +184,69 @@ class ReportsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun loadWorstProducts(lowThreshold: Int = 5) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+                val report = getWorstSellingProductsUseCase(
+                    _uiState.value.startDate,
+                    _uiState.value.endDate,
+                    _uiState.value.cashierIdFilter,
+                    lowThreshold
+                )
+                _uiState.update { it.copy(worstProductsReport = report, isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = "Gagal memuat worst products: ${e.message}") }
+            }
+        }
+    }
+
+    private fun computePreviousRange(startDate: Long, endDate: Long): Pair<Long, Long> {
+        val length = endDate - startDate + 1
+        val prevEnd = startDate - 1
+        val prevStart = prevEnd - (length - 1)
+        return Pair(prevStart, prevEnd)
+    }
+
+    // Export helpers (suspend) - UI can call these from a coroutine and then share file
+    suspend fun exportDashboardSummary(context: Context): java.io.File {
+        val dashboard = _uiState.value.dashboard ?: getDashboardDataUseCase(
+            _uiState.value.startDate,
+            _uiState.value.endDate,
+            _uiState.value.cashierIdFilter
+        )
+        return exportReportUseCase.exportDashboardSummary(context, dashboard)
+    }
+
+    suspend fun exportWorstProducts(context: Context): java.io.File {
+        val worstReport = _uiState.value.worstProductsReport ?: getWorstSellingProductsUseCase(
+            _uiState.value.startDate,
+            _uiState.value.endDate,
+            _uiState.value.cashierIdFilter,
+            0
+        )
+        return exportReportUseCase.exportWorstProducts(context, worstReport, _uiState.value.startDate, _uiState.value.endDate)
+    }
+
+    suspend fun exportDashboardSummaryXlsx(context: Context): java.io.File {
+        val dashboard = _uiState.value.dashboard ?: getDashboardDataUseCase(
+            _uiState.value.startDate,
+            _uiState.value.endDate,
+            _uiState.value.cashierIdFilter
+        )
+        return exportReportUseCase.exportDashboardSummaryXlsx(context, dashboard)
+    }
+
+    suspend fun exportWorstProductsXlsx(context: Context): java.io.File {
+        val worstReport = _uiState.value.worstProductsReport ?: getWorstSellingProductsUseCase(
+            _uiState.value.startDate,
+            _uiState.value.endDate,
+            _uiState.value.cashierIdFilter,
+            0
+        )
+        return exportReportUseCase.exportWorstProductsXlsx(context, worstReport, _uiState.value.startDate, _uiState.value.endDate)
     }
 
     companion object {
@@ -294,6 +388,7 @@ sealed class ReportsEvent {
     data class SelectPeriod(val period: PeriodType) : ReportsEvent()
     data class SelectCustomPeriod(val startDate: Long, val endDate: Long) : ReportsEvent()
     data class SelectTab(val tab: ReportTab) : ReportsEvent()
+    data class LoadWorstProducts(val lowThreshold: Int = 5) : ReportsEvent()
     object ShowPeriodPicker : ReportsEvent()
     object HidePeriodPicker : ReportsEvent()
     object ShowExportDialog : ReportsEvent()
@@ -301,5 +396,5 @@ sealed class ReportsEvent {
     object Refresh : ReportsEvent()
     object DismissError : ReportsEvent()
     object DismissSuccess : ReportsEvent()
+    data class SetCashierFilter(val cashierId: String?) : ReportsEvent()
 }
-

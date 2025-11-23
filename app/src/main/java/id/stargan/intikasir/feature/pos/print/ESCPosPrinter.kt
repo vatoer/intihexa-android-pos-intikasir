@@ -14,6 +14,7 @@ import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.util.BluetoothPermissionHelper
+import id.stargan.intikasir.util.DateFormatUtils
 import java.io.File
 import java.io.OutputStream
 import java.nio.charset.Charset
@@ -119,7 +120,7 @@ object ESCPosPrinter {
         items: List<TransactionItemEntity>,
         context: Context
     ) {
-        val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
+        val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
         val cpl = settings.paperCharPerLine
         val charset = Charset.forName("US-ASCII")
 
@@ -167,8 +168,7 @@ object ESCPosPrinter {
         // Transaction Number
         alignLeft()
         text("No: ${transaction.transactionNumber}")
-        val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale("id", "ID"))
-        text("Tgl: ${dateFormat.format(java.util.Date(transaction.transactionDate))}")
+        text("Tgl: ${DateFormatUtils.formatEpochMillis(transaction.transactionDate, "dd/MM/yyyy HH:mm")}")
         text("Kasir: ${transaction.cashierName}")
         divider()
 
@@ -354,7 +354,7 @@ object ESCPosPrinter {
     ) {
         val cpl = settings.paperCharPerLine
         val charset = Charset.forName("US-ASCII")
-        val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
+        val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
 
         fun cmd(bytes: ByteArray) = out.write(bytes)
         fun text(line: String = "", nl: Boolean = true) {
@@ -383,8 +383,7 @@ object ESCPosPrinter {
         // Details
         alignLeft()
         text("Transaksi : ${transaction.transactionNumber}")
-        val date = java.text.SimpleDateFormat("dd MMM yyyy, HH:mm", java.util.Locale("id", "ID")).format(java.util.Date(transaction.transactionDate))
-        text("Waktu     : $date")
+        text("Waktu     : ${DateFormatUtils.formatEpochMillis(transaction.transactionDate, "dd MMM yyyy, HH:mm")}")
         text("Total     : ${nf.format(transaction.total).replace("Rp", "Rp ")}")
 
         text(); divider(); alignCenter(); text("Terima kasih"); feed(3)

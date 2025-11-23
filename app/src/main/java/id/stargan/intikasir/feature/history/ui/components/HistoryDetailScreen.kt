@@ -52,8 +52,7 @@ import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import id.stargan.intikasir.ui.common.components.TransactionActions
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
+import id.stargan.intikasir.util.DateFormatUtils
 import java.util.Locale
 
 
@@ -75,7 +74,6 @@ fun HistoryDetailScreen(
     val listUiState by viewModel.uiState.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
     val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -142,7 +140,7 @@ fun HistoryDetailScreen(
             ) {
                 item {
                     Text(tx.transactionNumber, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Tanggal: ${dateFormatter.format(Date(tx.updatedAt))}")
+                    Text("Tanggal: ${DateFormatUtils.formatEpochMillis(tx.updatedAt, "dd MMM yyyy, HH:mm")}")
                     Text("Kasir: ${tx.cashierName}")
                     Text("Status: ${tx.status.name}")
                     Text("Metode Bayar: ${tx.paymentMethod.name}")

@@ -3,8 +3,7 @@ package id.stargan.intikasir.feature.history.ui.components
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +48,6 @@ fun DateRangePickerModal(
 }
 
 fun formatDateRange(startDate: Long, endDate: Long): String {
-    val formatter = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-    return "${formatter.format(Date(startDate))} - ${formatter.format(Date(endDate))}"
+    val pattern = "dd MMM yyyy"
+    return "${DateFormatUtils.formatEpochMillis(startDate, pattern)} - ${DateFormatUtils.formatEpochMillis(endDate, pattern)}"
 }
-

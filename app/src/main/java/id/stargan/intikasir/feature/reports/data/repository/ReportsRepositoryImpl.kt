@@ -3,36 +3,153 @@ package id.stargan.intikasir.feature.reports.data.repository
 import id.stargan.intikasir.data.local.dao.TransactionDao
 import id.stargan.intikasir.data.local.dao.TransactionItemDao
 import id.stargan.intikasir.data.local.dao.ExpenseDao
-import id.stargan.intikasir.data.local.entity.*
-import id.stargan.intikasir.feature.reports.domain.model.*
+import id.stargan.intikasir.data.local.dao.ProductDao
+import id.stargan.intikasir.data.local.entity.TransactionEntity
+import id.stargan.intikasir.data.local.entity.TransactionItemEntity
+import id.stargan.intikasir.data.local.entity.ExpenseEntity
+import id.stargan.intikasir.feature.reports.domain.model.DailyData
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseCategoryData
+import id.stargan.intikasir.feature.reports.domain.model.ProductSales
+import id.stargan.intikasir.feature.reports.domain.model.PaymentMethodData
+import id.stargan.intikasir.feature.reports.domain.model.ReportDashboard
+import id.stargan.intikasir.feature.reports.domain.model.ReportFilter
+import id.stargan.intikasir.feature.reports.domain.model.TransactionReport
+import id.stargan.intikasir.feature.reports.domain.model.TransactionReportItem
+import id.stargan.intikasir.feature.reports.domain.model.TransactionSummary
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseReport
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseReportItem
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseSummary
+import id.stargan.intikasir.feature.reports.domain.model.ProfitLossReport
+import id.stargan.intikasir.feature.reports.domain.model.RevenueBreakdown
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseBreakdown
+import id.stargan.intikasir.feature.reports.domain.model.WorstProductsReport
+import id.stargan.intikasir.feature.reports.domain.model.ProductInfo
 import id.stargan.intikasir.feature.reports.domain.repository.ReportsRepository
-import kotlinx.coroutines.flow.*
-import java.util.*
+import id.stargan.intikasir.data.local.entity.ExpenseCategory as LocalExpenseCategory
+import id.stargan.intikasir.data.local.entity.TransactionStatus as LocalTransactionStatus
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.Calendar
 
 @Singleton
 class ReportsRepositoryImpl @Inject constructor(
     private val transactionDao: TransactionDao,
     private val transactionItemDao: TransactionItemDao,
-    private val expenseDao: ExpenseDao
+    private val expenseDao: ExpenseDao,
+    private val productDao: ProductDao
 ) : ReportsRepository {
 
-    override suspend fun getDashboardData(startDate: Long, endDate: Long): ReportDashboard {
-        val revenue = transactionDao.getTotalRevenue(startDate, endDate) ?: 0.0
-        val expense = expenseDao.getTotalExpenses(startDate, endDate) ?: 0.0
-        val transactionCount = transactionDao.getTransactionCount(startDate, endDate)
+    override suspend fun getDashboardData(startDate: Long, endDate: Long, cashierId: String?): ReportDashboard {
+        // Fetch transactions and expenses, then apply cashier filter if provided
+        val transactions = transactionDao.getTransactionsByDateRange(startDate, endDate).first()
+        val filteredTransactions = if (!cashierId.isNullOrBlank()) {
+            transactions.filter { it.cashierId == cashierId }
+        } else {
+            transactions
+        }
+
+        val revenue = filteredTransactions.sumOf { it.total }
+        // Fetch all expenses for range and filter by cashier if requested
+        val allExpenses = expenseDao.getExpensesByDateRange(startDate, endDate).first()
+        val filteredExpenses = if (!cashierId.isNullOrBlank()) {
+            allExpenses.filter { it.createdBy == cashierId }
+        } else {
+            allExpenses
+        }
+        val expense = filteredExpenses.sumOf { it.amount }
+         // Note: expenses are global; if you want cashier-specific expenses tracked, adapt later
+         val transactionCount = filteredTransactions.size
+
+         // Compute dailyRevenue by grouping filteredTransactions by day (midnight timestamp)
+         val calendar = Calendar.getInstance()
+         val dailyMap = mutableMapOf<Long, MutableList<TransactionEntity>>()
+         for (tx in filteredTransactions) {
+             calendar.timeInMillis = tx.transactionDate
+             calendar.set(Calendar.HOUR_OF_DAY, 0)
+             calendar.set(Calendar.MINUTE, 0)
+             calendar.set(Calendar.SECOND, 0)
+             calendar.set(Calendar.MILLISECOND, 0)
+             val dayKey = calendar.timeInMillis
+             dailyMap.getOrPut(dayKey) { mutableListOf() }.add(tx)
+         }
+
+         val dailyRevenueList = dailyMap.map { (date, txList) ->
+             DailyData(
+                 date = date,
+                 amount = txList.sumOf { it.total },
+                 count = txList.size
+             )
+         }.sortedBy { it.date }
+
+         // Compute dailyExpense by grouping filteredExpenses by day
+         val dailyExpenseMap = mutableMapOf<Long, MutableList<ExpenseEntity>>()
+         for (exp in filteredExpenses) {
+             calendar.timeInMillis = exp.date
+             calendar.set(Calendar.HOUR_OF_DAY, 0)
+             calendar.set(Calendar.MINUTE, 0)
+             calendar.set(Calendar.SECOND, 0)
+             calendar.set(Calendar.MILLISECOND, 0)
+             val dayKey = calendar.timeInMillis
+             dailyExpenseMap.getOrPut(dayKey) { mutableListOf() }.add(exp)
+         }
+
+         val dailyExpenseList = dailyExpenseMap.map { (date, expList) ->
+             DailyData(
+                 date = date,
+                 amount = expList.sumOf { it.amount },
+                 count = expList.size
+             )
+         }.sortedBy { it.date }
+
+         // Compute expenseCategoryBreakdown from filtered expenses
+         val expenseTotal = filteredExpenses.sumOf { it.amount }
+         val expenseByCategory = filteredExpenses.groupBy { it.category }
+             .map { (category, list) ->
+                 ExpenseCategoryData(
+                     category = category,
+                     amount = list.sumOf { it.amount },
+                     count = list.size,
+                     percentage = if (expenseTotal > 0) (list.sumOf { it.amount } / expenseTotal) * 100 else 0.0
+                 )
+             }.sortedByDescending { it.amount }
+
+        // Compute topProducts using SQL aggregation in DAO
+        val topProducts = if (_isEmpty(filteredTransactions = filteredTransactions)) {
+            emptyList()
+        } else {
+            val rows = if (!cashierId.isNullOrBlank()) {
+                transactionItemDao.getTopSellingProductsByRangeAndCashier(startDate, endDate, cashierId, 10)
+            } else {
+                transactionItemDao.getTopSellingProductsByRange(startDate, endDate, 10)
+            }
+            rows.map { ProductSales(it.productId, it.productName, it.totalQuantity, it.totalRevenue) }
+        }
+
+        // Compute paymentMethodBreakdown from filteredTransactions
+        val paymentGrouped = filteredTransactions.groupBy { it.paymentMethod }
+        val totalForPayment = filteredTransactions.sumOf { it.total }
+        val paymentMethodBreakdown = paymentGrouped.map { (method, txList) ->
+            val amount = txList.sumOf { it.total }
+            PaymentMethodData(
+                method = method,
+                amount = amount,
+                count = txList.size,
+                percentage = if (totalForPayment > 0) (amount / totalForPayment) * 100 else 0.0
+            )
+        }.sortedByDescending { it.amount }
 
         return ReportDashboard(
             totalRevenue = revenue,
             totalExpense = expense,
             netProfit = revenue - expense,
             transactionCount = transactionCount,
-            dailyRevenue = getDailyRevenueTrend(startDate, endDate),
-            dailyExpense = getDailyExpenseTrend(startDate, endDate),
-            topProducts = getTopSellingProducts(startDate, endDate, 5),
-            paymentMethodBreakdown = getPaymentMethodBreakdown(startDate, endDate),
-            expenseCategoryBreakdown = getExpenseCategoryBreakdown(startDate, endDate),
+            dailyRevenue = dailyRevenueList,
+            dailyExpense = dailyExpenseList,
+            topProducts = topProducts,
+            paymentMethodBreakdown = paymentMethodBreakdown,
+            expenseCategoryBreakdown = expenseByCategory,
             periodStart = startDate,
             periodEnd = endDate
         )
@@ -49,7 +166,7 @@ class ReportsRepositoryImpl @Inject constructor(
             transactions.filter { it.paymentMethod == filter.paymentMethod }
         } else {
             transactions
-        }.filter { it.status == TransactionStatus.COMPLETED }
+        }.filter { it.status == LocalTransactionStatus.COMPLETED }
 
         val items = filtered.map { tx ->
             val itemCount = transactionItemDao.getItemsByTransactionSuspend(tx.id).size
@@ -136,15 +253,15 @@ class ReportsRepositoryImpl @Inject constructor(
             .mapValues { it.value.sumOf { exp -> exp.amount } }
 
         val expenseBreakdown = ExpenseBreakdown(
-            operational = (expenseByCategory[ExpenseCategory.SUPPLIES] ?: 0.0) +
-                         (expenseByCategory[ExpenseCategory.RENT] ?: 0.0),
+            operational = (expenseByCategory[LocalExpenseCategory.SUPPLIES] ?: 0.0) +
+                         (expenseByCategory[LocalExpenseCategory.RENT] ?: 0.0),
             inventory = 0.0, // Not tracked separately in current schema
-            salary = expenseByCategory[ExpenseCategory.SALARY] ?: 0.0,
-            utilities = expenseByCategory[ExpenseCategory.UTILITIES] ?: 0.0,
-            maintenance = expenseByCategory[ExpenseCategory.MAINTENANCE] ?: 0.0,
-            marketing = expenseByCategory[ExpenseCategory.MARKETING] ?: 0.0,
-            other = (expenseByCategory[ExpenseCategory.TRANSPORT] ?: 0.0) +
-                   (expenseByCategory[ExpenseCategory.MISC] ?: 0.0),
+            salary = expenseByCategory[LocalExpenseCategory.SALARY] ?: 0.0,
+            utilities = expenseByCategory[LocalExpenseCategory.UTILITIES] ?: 0.0,
+            maintenance = expenseByCategory[LocalExpenseCategory.MAINTENANCE] ?: 0.0,
+            marketing = expenseByCategory[LocalExpenseCategory.MARKETING] ?: 0.0,
+            other = (expenseByCategory[LocalExpenseCategory.TRANSPORT] ?: 0.0) +
+                   (expenseByCategory[LocalExpenseCategory.MISC] ?: 0.0),
             total = expenses.sumOf { it.amount }
         )
 
@@ -222,17 +339,43 @@ class ReportsRepositoryImpl @Inject constructor(
         }.sortedBy { it.date }
     }
 
-    override suspend fun getTopSellingProducts(startDate: Long, endDate: Long, limit: Int): List<ProductSales> {
-        val topItems = transactionItemDao.getTopSellingProducts(startDate, endDate, limit)
-
-        return topItems.map { item ->
-            ProductSales(
-                productId = item.productId,
-                productName = item.productName,
-                quantitySold = item.quantity,
-                revenue = item.subtotal
-            )
+    override suspend fun getTopSellingProducts(startDate: Long, endDate: Long, cashierId: String?, limit: Int): List<ProductSales> {
+        // Use DAO aggregated query for performance
+        val rows = if (!cashierId.isNullOrBlank()) {
+            transactionItemDao.getTopSellingProductsByRangeAndCashier(startDate, endDate, cashierId, limit)
+        } else {
+            transactionItemDao.getTopSellingProductsByRange(startDate, endDate, limit)
         }
+        return rows.map { ProductSales(it.productId, it.productName, it.totalQuantity, it.totalRevenue) }
+    }
+
+    override suspend fun getWorstSellingProducts(startDate: Long, endDate: Long, cashierId: String?, lowThreshold: Int): WorstProductsReport {
+        // Aggregate sales per product from filtered transactions
+        val transactions = transactionDao.getTransactionsByDateRange(startDate, endDate).first()
+        val filteredTransactions = if (!cashierId.isNullOrBlank()) transactions.filter { it.cashierId == cashierId } else transactions
+
+        val transactionIds = filteredTransactions.map { it.id }
+        val items = if (transactionIds.isNotEmpty()) transactionItemDao.getItemsByTransactionIds(transactionIds) else emptyList()
+
+        val salesByProduct = items.groupBy { it.productId }.mapValues { it.value.sumOf { it.quantity } }
+
+        // Get all active products
+        val allProducts = productDao.getAllActiveProducts().first()
+
+        // Build list of products with sold quantity > 0
+        val soldProducts = salesByProduct.mapNotNull { (productId, qty) ->
+            val p = allProducts.find { it.id == productId }
+            p?.let { ProductSales(productId, it.name, qty, items.filter { it.productId == productId }.sumOf { it.subtotal }) }
+        }
+
+        // worstProducts: take products with sold qty > 0, sorted ascending by qty, limit 10
+        val worstProducts = soldProducts.sortedBy { it.quantitySold }.take(10)
+
+        // notSold: all active products not in salesByProduct
+        val notSold = allProducts.filter { p -> !salesByProduct.containsKey(p.id) }
+            .map { ProductInfo(productId = it.id, productName = it.name, stock = it.stock) }
+
+        return WorstProductsReport(worstProducts = worstProducts, notSold = notSold)
     }
 
     override suspend fun getPaymentMethodBreakdown(startDate: Long, endDate: Long): List<PaymentMethodData> {
@@ -285,5 +428,14 @@ class ReportsRepositoryImpl @Inject constructor(
         }
         return result
     }
-}
 
+    private data class ProductSalesBuilder(
+        val productId: String,
+        val productName: String,
+        var quantitySold: Int = 0,
+        var revenue: Double = 0.0
+    )
+
+    // Small helper to check empty filteredTransactions without extra DB calls
+    private fun _isEmpty(filteredTransactions: List<TransactionEntity>): Boolean = filteredTransactions.isEmpty()
+}

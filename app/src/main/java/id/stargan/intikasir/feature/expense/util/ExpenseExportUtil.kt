@@ -10,8 +10,8 @@ import id.stargan.intikasir.feature.expense.ui.components.getCategoryLabel
 import java.io.File
 import java.io.FileWriter
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
+import java.util.Locale
 
 object ExpenseExportUtil {
 
@@ -24,11 +24,11 @@ object ExpenseExportUtil {
         startDate: Long,
         endDate: Long
     ): File {
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-        val dateTimeFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
-        val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        val dateFormatPattern = "dd MMM yyyy"
+        val dateTimeFormatPattern = "dd/MM/yyyy HH:mm"
+        val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
 
-        val fileName = "Pengeluaran_${dateFormat.format(Date(startDate))}_${dateFormat.format(Date(endDate))}.csv"
+        val fileName = "Pengeluaran_${DateFormatUtils.formatEpochMillis(startDate, dateFormatPattern)}_${DateFormatUtils.formatEpochMillis(endDate, dateFormatPattern)}.csv"
         val file = File(context.cacheDir, fileName)
 
         FileWriter(file).use { writer ->
@@ -37,7 +37,7 @@ object ExpenseExportUtil {
 
             // Data rows
             expenses.forEach { expense ->
-                writer.append("${dateTimeFormat.format(Date(expense.date))},")
+                writer.append("${DateFormatUtils.formatEpochMillis(expense.date, dateTimeFormatPattern)},")
                 writer.append("${getCategoryLabel(expense.category)},")
                 writer.append("\"${expense.description.replace("\"", "\"\"")}\",")
                 writer.append("${expense.amount},")
@@ -50,7 +50,7 @@ object ExpenseExportUtil {
             writer.append("RINGKASAN\n")
             writer.append("Total Pengeluaran,${currency.format(expenses.sumOf { it.amount }).replace("Rp", "Rp ")}\n")
             writer.append("Jumlah Transaksi,${expenses.size}\n")
-            writer.append("Periode,${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}\n")
+            writer.append("Periode,${DateFormatUtils.formatEpochMillis(startDate, dateFormatPattern)} - ${DateFormatUtils.formatEpochMillis(endDate, dateFormatPattern)}\n")
 
             // Category summary
             writer.append("\n")
@@ -75,11 +75,11 @@ object ExpenseExportUtil {
         startDate: Long,
         endDate: Long
     ): File {
-        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
-        val dateTimeFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("id", "ID"))
-        val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        val dateFormatPattern = "dd MMM yyyy"
+        val dateTimeFormatPattern = "dd/MM/yyyy HH:mm:ss"
+        val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
 
-        val fileName = "Pengeluaran_Detail_${dateFormat.format(Date(startDate))}_${dateFormat.format(Date(endDate))}.csv"
+        val fileName = "Pengeluaran_Detail_${DateFormatUtils.formatEpochMillis(startDate, dateFormatPattern)}_${DateFormatUtils.formatEpochMillis(endDate, dateFormatPattern)}.csv"
         val file = File(context.cacheDir, fileName)
 
         FileWriter(file).use { writer ->
@@ -89,14 +89,14 @@ object ExpenseExportUtil {
             // Data rows
             expenses.forEach { expense ->
                 writer.append("${expense.id},")
-                writer.append("${dateTimeFormat.format(Date(expense.date))},")
-                writer.append("${dateTimeFormat.format(Date(expense.createdAt))},")
+                writer.append("${DateFormatUtils.formatEpochMillis(expense.date, dateTimeFormatPattern)},")
+                writer.append("${DateFormatUtils.formatEpochMillis(expense.createdAt, dateTimeFormatPattern)},")
                 writer.append("${getCategoryLabel(expense.category)},")
                 writer.append("\"${expense.description.replace("\"", "\"\"")}\",")
                 writer.append("${expense.amount},")
                 writer.append("${getPaymentMethodLabel(expense.paymentMethod.name)},")
                 writer.append("${expense.createdByName},")
-                writer.append("${dateTimeFormat.format(Date(expense.updatedAt))}\n")
+                writer.append("${DateFormatUtils.formatEpochMillis(expense.updatedAt, dateTimeFormatPattern)}\n")
             }
 
             // Summary
@@ -104,8 +104,8 @@ object ExpenseExportUtil {
             writer.append("RINGKASAN DETAIL\n")
             writer.append("Total Pengeluaran,${currency.format(expenses.sumOf { it.amount }).replace("Rp", "Rp ")}\n")
             writer.append("Jumlah Transaksi,${expenses.size}\n")
-            writer.append("Periode,${dateFormat.format(Date(startDate))} - ${dateFormat.format(Date(endDate))}\n")
-            writer.append("Tanggal Export,${dateTimeFormat.format(Date())}\n")
+            writer.append("Periode,${DateFormatUtils.formatEpochMillis(startDate, dateFormatPattern)} - ${DateFormatUtils.formatEpochMillis(endDate, dateFormatPattern)}\n")
+            writer.append("Tanggal Export,${DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), dateTimeFormatPattern)}\n")
 
             // Payment method summary
             writer.append("\n")
@@ -161,4 +161,3 @@ object ExpenseExportUtil {
         }
     }
 }
-

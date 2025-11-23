@@ -1,11 +1,30 @@
 package id.stargan.intikasir.feature.reports.ui.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Divider
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,11 +34,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.PaymentMethod
-import id.stargan.intikasir.feature.reports.domain.model.*
+import id.stargan.intikasir.feature.reports.domain.model.DailyData
+import id.stargan.intikasir.feature.reports.domain.model.ProductSales
+import id.stargan.intikasir.feature.reports.domain.model.PaymentMethodData
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseCategoryData
+import id.stargan.intikasir.feature.reports.domain.model.RevenueBreakdown
+import id.stargan.intikasir.feature.reports.domain.model.ExpenseBreakdown
 import id.stargan.intikasir.ui.theme.extendedColors
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
+import java.util.Locale
 
 
 /**
@@ -33,7 +57,7 @@ fun SummaryCards(
     transactionCount: Int,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -149,7 +173,7 @@ fun TopProductsCard(
     products: List<ProductSales>,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -209,7 +233,7 @@ fun PaymentMethodBreakdownCard(
     data: List<PaymentMethodData>,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -241,7 +265,7 @@ fun PaymentMethodBreakdownCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "${item.count} transaksi (${String.format("%.1f", item.percentage)}%)",
+                            text = "${item.count} transaksi (${String.format(Locale.getDefault(), "%.1f", item.percentage)}%)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -268,7 +292,7 @@ fun ExpenseCategoryBreakdownCard(
     data: List<ExpenseCategoryData>,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -300,7 +324,7 @@ fun ExpenseCategoryBreakdownCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "${item.count} transaksi (${String.format("%.1f", item.percentage)}%)",
+                            text = "${item.count} transaksi (${String.format(Locale.getDefault(), "%.1f", item.percentage)}%)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -329,8 +353,6 @@ fun PeriodInfoCard(
     endDate: Long,
     modifier: Modifier = Modifier
 ) {
-    val dateFormatter = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
-
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -348,7 +370,7 @@ fun PeriodInfoCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${dateFormatter.format(Date(startDate))} - ${dateFormatter.format(Date(endDate))}",
+                text = "${DateFormatUtils.formatEpochMillis(startDate, "dd MMMM yyyy")} - ${DateFormatUtils.formatEpochMillis(endDate, "dd MMMM yyyy")}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -366,7 +388,7 @@ fun NetProfitCard(
     profitMargin: Double,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -401,7 +423,7 @@ fun NetProfitCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Margin: ${String.format("%.2f", kotlin.math.abs(profitMargin))}%",
+                text = "Margin: ${String.format(Locale.getDefault(), "%.2f", kotlin.math.abs(profitMargin))}%",
                 style = MaterialTheme.typography.bodyLarge
             )
         }
@@ -416,7 +438,7 @@ fun RevenueBreakdownCard(
     revenue: RevenueBreakdown,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -457,7 +479,7 @@ fun ExpenseBreakdownCard(
     expenses: ExpenseBreakdown,
     modifier: Modifier = Modifier
 ) {
-    val currency = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+    val currency = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
         maximumFractionDigits = 0
     }
 
@@ -542,4 +564,3 @@ private fun getCategoryLabel(category: id.stargan.intikasir.data.local.entity.Ex
         id.stargan.intikasir.data.local.entity.ExpenseCategory.MISC -> "Lain-lain"
     }
 }
-

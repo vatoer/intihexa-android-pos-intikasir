@@ -7,7 +7,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import id.stargan.intikasir.data.local.dao.*
+import id.stargan.intikasir.data.local.dao.UserDao
+import id.stargan.intikasir.data.local.dao.CategoryDao
+import id.stargan.intikasir.data.local.dao.ProductDao
+import id.stargan.intikasir.data.local.dao.TransactionDao
+import id.stargan.intikasir.data.local.dao.TransactionItemDao
+import id.stargan.intikasir.data.local.dao.StoreSettingsDao
+import id.stargan.intikasir.data.local.dao.ExpenseDao
 import id.stargan.intikasir.data.local.database.DatabaseCallback
 import id.stargan.intikasir.data.local.database.IntiKasirDatabase
 import kotlinx.coroutines.CoroutineScope

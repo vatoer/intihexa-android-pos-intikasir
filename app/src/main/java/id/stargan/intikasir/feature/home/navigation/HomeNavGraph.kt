@@ -272,10 +272,6 @@ fun NavGraphBuilder.homeNavGraph(
         )
     }
 
-    composable(HomeRoutes.PRINT_RECEIPT) {
-        PlaceholderScreen(title = "Cetak Resi", onBack = { navController.navigateUp() })
-    }
-
     // POS Screen (Kasir) - Reactive version
     composable(
         route = PosRoutes.POS_WITH_ID,

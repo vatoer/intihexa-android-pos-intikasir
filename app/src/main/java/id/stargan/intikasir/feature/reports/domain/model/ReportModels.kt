@@ -44,6 +44,17 @@ data class ProductSales(
     val revenue: Double
 )
 
+data class ProductInfo(
+    val productId: String,
+    val productName: String,
+    val stock: Int
+)
+
+data class WorstProductsReport(
+    val worstProducts: List<ProductSales>, // products with smallest sold quantity (ascending), limit 10
+    val notSold: List<ProductInfo> // products with zero sales
+)
+
 data class PaymentMethodData(
     val method: PaymentMethod,
     val amount: Double,
@@ -161,4 +172,3 @@ enum class PeriodType {
     THIS_YEAR,
     CUSTOM
 }
-

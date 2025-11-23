@@ -39,7 +39,7 @@ class CurrencyVisualTransformation : VisualTransformation {
         // Convert to number and format
         val number = digitsOnly.toLongOrNull() ?: return digitsOnly
 
-        val symbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+        val symbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
             groupingSeparator = '.'
         }
         val formatter = DecimalFormat("#,###", symbols)
@@ -104,7 +104,7 @@ class CurrencyVisualTransformation : VisualTransformation {
  * Helper function untuk format display rupiah (sudah dengan prefix Rp)
  */
 fun formatRupiah(amount: Double): String {
-    val symbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+    val symbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
         groupingSeparator = '.'
         decimalSeparator = ','
     }
@@ -116,7 +116,7 @@ fun formatRupiah(amount: Double): String {
  * Helper function untuk format display rupiah (tanpa prefix, untuk input field)
  */
 fun formatRupiahNumber(amount: Double): String {
-    val symbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+    val symbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
         groupingSeparator = '.'
     }
     val formatter = DecimalFormat("#,###", symbols)
@@ -131,4 +131,3 @@ fun parseRupiah(formattedText: String): Double {
     val digitsOnly = formattedText.filter { it.isDigit() }
     return digitsOnly.toDoubleOrNull() ?: 0.0
 }
-

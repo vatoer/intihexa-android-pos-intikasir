@@ -5,11 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.stargan.intikasir.data.repository.ActivationRepository
+import id.stargan.intikasir.util.DateFormatUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
@@ -72,8 +71,7 @@ class ActivationViewModel @Inject constructor(
 
         val expiry = activationRepository.getActivationExpiry()
         _expiryDate.value = if (expiry > 0) {
-            val sdf = SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID"))
-            sdf.format(Date(expiry))
+            DateFormatUtils.formatEpochMillis(expiry, "dd MMM yyyy HH:mm")
         } else {
             "Selamanya"
         }
@@ -98,4 +96,3 @@ sealed class ActivationState {
     data class Success(val message: String) : ActivationState()
     data class Error(val message: String) : ActivationState()
 }
-

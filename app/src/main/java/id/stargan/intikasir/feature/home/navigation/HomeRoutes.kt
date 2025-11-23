@@ -9,7 +9,7 @@ object HomeRoutes {
     const val HISTORY = "history"
     const val EXPENSES = "expenses"
     const val REPORTS = "reports"
-    const val PRINT_RECEIPT = "print_receipt"
+
     const val CASHIER = "cashier"
     const val SETTINGS = "settings"
     const val PROFILE = "profil"

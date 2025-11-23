@@ -11,7 +11,7 @@ interface ReportsRepository {
     /**
      * Get dashboard data untuk overview
      */
-    suspend fun getDashboardData(startDate: Long, endDate: Long): ReportDashboard
+    suspend fun getDashboardData(startDate: Long, endDate: Long, cashierId: String? = null): ReportDashboard
 
     /**
      * Get detailed transaction report
@@ -41,7 +41,14 @@ interface ReportsRepository {
     /**
      * Get top selling products
      */
-    suspend fun getTopSellingProducts(startDate: Long, endDate: Long, limit: Int = 10): List<ProductSales>
+    suspend fun getTopSellingProducts(startDate: Long, endDate: Long, cashierId: String? = null, limit: Int = 10): List<ProductSales>
+
+    /**
+     * Get worst selling products report
+     * - soldButLow: products that have sales but <= lowThreshold quantity
+     * - notSold: products with zero sales in the period
+     */
+    suspend fun getWorstSellingProducts(startDate: Long, endDate: Long, cashierId: String? = null, lowThreshold: Int = 5): WorstProductsReport
 
     /**
      * Get payment method breakdown
@@ -68,4 +75,3 @@ interface ReportsRepository {
      */
     suspend fun getTransactionItems(transactionIds: List<String>): Map<String, List<TransactionItemEntity>>
 }
-

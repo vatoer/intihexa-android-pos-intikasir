@@ -40,7 +40,7 @@ class ProductFormViewModel @Inject constructor(
         val clean = value.filter { it.isDigit() }
         if (clean.isEmpty()) return ""
         val number = clean.toLong()
-        val symbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+        val symbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
             groupingSeparator = '.'
             decimalSeparator = ','
         }

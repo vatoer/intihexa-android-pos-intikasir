@@ -20,8 +20,7 @@ import id.stargan.intikasir.feature.expense.util.ExpenseExportUtil
 import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
 import id.stargan.intikasir.feature.history.ui.components.formatDateRange
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,12 +35,9 @@ fun ExpenseListScreen(
     val toastMessage by viewModel.toastMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")) }
     val context = LocalContext.current
-
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showCustomDatePicker by remember { mutableStateOf(false) }
     var showExportMenu by remember { mutableStateOf(false) }
+    var showCustomDatePicker by remember { mutableStateOf(false) }
 
     // Calculate summary
     val totalExpenses = uiState.expenses.size
@@ -182,7 +178,7 @@ fun ExpenseListScreen(
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                val currency = remember { java.text.NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
+                                val currency = remember { java.text.NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
                                 Text(
                                     text = currency.format(totalAmount).replace("Rp", "Rp "),
                                     style = MaterialTheme.typography.titleLarge,
@@ -330,4 +326,3 @@ private fun ExpenseFilterBar(
         }
     }
 }
-

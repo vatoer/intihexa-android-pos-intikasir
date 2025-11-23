@@ -203,8 +203,7 @@ class PosViewModel @Inject constructor(
             )
 
             // Generate transaction number for display
-            val dateFormat = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault())
-            val datePart = dateFormat.format(java.util.Date())
+            val datePart = id.stargan.intikasir.util.DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), "yyyyMMdd")
             val transactionNumber = "INV-$datePart-${transactionId.takeLast(4)}"
 
             _uiState.update {

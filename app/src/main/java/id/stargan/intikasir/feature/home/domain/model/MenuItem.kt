@@ -63,13 +63,6 @@ object MenuItems {
             route = "reports",
             description = "Laporan keuangan"
         ),
-        MenuItem(
-            id = "print",
-            title = "Cetak Resi",
-            icon = Icons.Filled.Print,
-            route = "print_receipt",
-            description = "Cetak ulang resi"
-        ),
 
         MenuItem(
             id = "settings",

@@ -1,8 +1,19 @@
 package id.stargan.intikasir.feature.reports.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -11,8 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.feature.reports.domain.model.DailyData
 import id.stargan.intikasir.ui.theme.extendedColors
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 /**
  * Revenue & Expense Trend Chart - Simplified Version
@@ -180,11 +190,11 @@ private fun PaymentBar(label: String, percentage: Float, color: Color) {
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { percentage / 100f },
+        DeterminateProgressBar(
+            progress = percentage / 100f,
             modifier = Modifier.fillMaxWidth().height(8.dp),
             color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }
 }
@@ -244,11 +254,11 @@ private fun ExpenseBar(label: String, percentage: Float, amount: Double) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            LinearProgressIndicator(
-                progress = { percentage / 100f },
-                modifier = Modifier.weight(1f).height(12.dp),
+            DeterminateProgressBar(
+                progress = percentage / 100f,
+                modifier = Modifier.fillMaxWidth(0.75f).height(12.dp),
                 color = expenseColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -302,3 +312,19 @@ private fun formatAmount(amount: Double): String {
     }
 }
 
+@Composable
+private fun DeterminateProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    color: Color,
+    trackColor: Color
+) {
+    Box(modifier = modifier.background(color = trackColor, shape = MaterialTheme.shapes.small)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress)
+                .fillMaxHeight()
+                .background(color = color, shape = MaterialTheme.shapes.small)
+        )
+    }
+}

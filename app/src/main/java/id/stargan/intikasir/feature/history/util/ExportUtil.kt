@@ -5,10 +5,8 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
+import id.stargan.intikasir.util.DateFormatUtils
 import java.io.File
-import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
 
 object ExportUtil {
 
@@ -17,13 +15,11 @@ object ExportUtil {
         transactions: List<TransactionEntity>,
         itemsMap: Map<String, List<TransactionItemEntity>>
     ): File {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Transaksi_${dateFormat.format(Date())}.csv"
+        val fileName = "Transaksi_${DateFormatUtils.fileTimestamp()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
-
         file.bufferedWriter().use { writer ->
+            val dateFormatterPattern = "dd/MM/yyyy HH:mm"
             // Header
             writer.write("No Transaksi,Tanggal,Kasir,Status,Metode Bayar,Subtotal,PPN,Diskon,Total,Dibayar,Kembalian,Jumlah Item\n")
 
@@ -31,7 +27,7 @@ object ExportUtil {
             transactions.forEach { tx ->
                 val itemCount = itemsMap[tx.id]?.size ?: 0
                 writer.write("${tx.transactionNumber},")
-                writer.write("${dateFormatter.format(Date(tx.transactionDate))},")
+                writer.write("${DateFormatUtils.formatEpochMillis(tx.transactionDate, dateFormatterPattern)},")
                 writer.write("${tx.cashierName},")
                 writer.write("${tx.status.name},")
                 writer.write("${tx.paymentMethod.name},")
@@ -53,13 +49,11 @@ object ExportUtil {
         transactions: List<TransactionEntity>,
         itemsMap: Map<String, List<TransactionItemEntity>>
     ): File {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Transaksi_Detail_${dateFormat.format(Date())}.csv"
+        val fileName = "Transaksi_Detail_${DateFormatUtils.fileTimestamp()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
-
         file.bufferedWriter().use { writer ->
+            val dateFormatterPattern = "dd/MM/yyyy HH:mm"
             // Header - Format: No Transaksi → Detail per item
             writer.write("No Transaksi,Tanggal,Kasir,Status,Metode Bayar,Produk,Qty,Harga Satuan,Diskon Item,Subtotal Item,Total Transaksi\n")
 
@@ -70,7 +64,7 @@ object ExportUtil {
                 if (items.isEmpty()) {
                     // Jika tidak ada item, tetap tampilkan transaksi
                     writer.write("${tx.transactionNumber},")
-                    writer.write("${dateFormatter.format(Date(tx.transactionDate))},")
+                    writer.write("${DateFormatUtils.formatEpochMillis(tx.transactionDate, dateFormatterPattern)},")
                     writer.write("${tx.cashierName},")
                     writer.write("${tx.status.name},")
                     writer.write("${tx.paymentMethod.name},")
@@ -80,7 +74,7 @@ object ExportUtil {
                     // Setiap item mendapat baris tersendiri dengan nomor transaksi yang sama
                     items.forEach { item ->
                         writer.write("${tx.transactionNumber},")
-                        writer.write("${dateFormatter.format(Date(tx.transactionDate))},")
+                        writer.write("${DateFormatUtils.formatEpochMillis(tx.transactionDate, dateFormatterPattern)},")
                         writer.write("${tx.cashierName},")
                         writer.write("${tx.status.name},")
                         writer.write("${tx.paymentMethod.name},")
@@ -116,5 +110,23 @@ object ExportUtil {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
-}
 
+    fun shareXlsx(context: Context, file: File) {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(
+            Intent.createChooser(intent, "Bagikan Laporan (XLSX)")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+}

@@ -14,7 +14,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.home.domain.model.MenuItems
 import id.stargan.intikasir.feature.home.ui.components.MenuCard
+import id.stargan.intikasir.feature.home.ui.components.SalesSummaryCard
+import id.stargan.intikasir.feature.reports.domain.model.PeriodType
+import id.stargan.intikasir.feature.reports.ui.ReportsEvent
+import id.stargan.intikasir.feature.reports.ui.ReportsViewModel
 import id.stargan.intikasir.feature.pos.navigation.PosRoutes
+import kotlin.math.roundToLong
 
 /**
  * Home Screen dengan menu grid
@@ -31,6 +36,20 @@ fun HomeScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     val currentUser by viewModel.currentUser.collectAsState()
     val isLoggingOut by viewModel.isLoggingOut.collectAsState()
+
+    // Reports ViewModel to read dashboard summary (if available)
+    val reportsViewModel: ReportsViewModel = hiltViewModel()
+    val reportsUiState by reportsViewModel.uiState.collectAsState()
+    val dashboard = reportsUiState.dashboard
+
+    // Ensure we request "TODAY" dashboard when HomeScreen is shown so card reflects today's sales
+    LaunchedEffect(currentUser) {
+        // Wait until currentUser is loaded, then set cashier filter accordingly
+        val cashierIdToSet = if (currentUser?.role?.name == "ADMIN") null else currentUser?.id
+        reportsViewModel.onEvent(ReportsEvent.SetCashierFilter(cashierIdToSet))
+        // Request today's data after filter applied
+        reportsViewModel.onEvent(ReportsEvent.SelectPeriod(PeriodType.TODAY))
+    }
 
     Scaffold(
         topBar = {
@@ -89,6 +108,18 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Sales summary card for today's transactions
+                    // Uses ReportsViewModel.dashboard when available
+                    SalesSummaryCard(
+                        totalSales = dashboard?.totalRevenue?.roundToLong(),
+                        transactionCount = dashboard?.transactionCount,
+                        netChange = reportsUiState.dashboardRevenueChange?.roundToLong(),
+                        isLoading = reportsUiState.isLoading,
+                        onRetry = { reportsViewModel.onEvent(ReportsEvent.Refresh) }
+                    )
                 }
             }
 

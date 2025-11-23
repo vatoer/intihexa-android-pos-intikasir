@@ -19,6 +19,7 @@ import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.feature.expense.ui.components.getCategoryLabel
 import id.stargan.intikasir.ui.common.CurrencyVisualTransformation
 import id.stargan.intikasir.ui.common.parseRupiah
+import id.stargan.intikasir.util.DateFormatUtils
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +43,7 @@ fun ExpenseFormScreen(
     val scope = rememberCoroutineScope()
     val toastMessage by viewModel.toastMessage.collectAsState()
 
-    val dateFormat = remember { java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")) }
+    val dateFormat = remember { id.stargan.intikasir.util.DateFormatUtils }
 
     // Show toast for errors only, navigate back immediately on success
     LaunchedEffect(toastMessage) {
@@ -118,7 +119,7 @@ fun ExpenseFormScreen(
 
             // Date selector
             OutlinedTextField(
-                value = dateFormat.format(java.util.Date(selectedDate)),
+                value = DateFormatUtils.formatEpochMillis(selectedDate, "dd MMMM yyyy"),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Tanggal") },
@@ -272,4 +273,3 @@ fun ExpenseFormScreen(
         }
     }
 }
-

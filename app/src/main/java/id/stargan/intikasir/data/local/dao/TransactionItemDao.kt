@@ -54,4 +54,72 @@ interface TransactionItemDao {
 
     @Query("DELETE FROM transaction_items WHERE transactionId = :transactionId")
     suspend fun deleteItemsByTransactionId(transactionId: String)
+
+    // Batch fetch items by transaction ids
+    @Query("SELECT * FROM transaction_items WHERE transactionId IN (:transactionIds)")
+    suspend fun getItemsByTransactionIds(transactionIds: List<String>): List<TransactionItemEntity>
+
+    // Projection for aggregated product sales
+    data class ProductSalesRow(
+        val productId: String,
+        val productName: String,
+        val totalQuantity: Int,
+        val totalRevenue: Double
+    )
+
+    // Top selling products in date range (all cashiers)
+    @Query("""
+        SELECT ti.productId as productId, ti.productName as productName, SUM(ti.quantity) as totalQuantity, SUM(ti.subtotal) as totalRevenue
+        FROM transaction_items ti
+        INNER JOIN transactions t ON ti.transactionId = t.id
+        WHERE t.transactionDate BETWEEN :startDate AND :endDate
+        AND t.status = 'COMPLETED' AND t.isDeleted = 0
+        GROUP BY ti.productId
+        ORDER BY totalQuantity DESC
+        LIMIT :limit
+    """)
+    suspend fun getTopSellingProductsByRange(startDate: Long, endDate: Long, limit: Int = 10): List<ProductSalesRow>
+
+    // Top selling products in date range for specific cashier
+    @Query("""
+        SELECT ti.productId as productId, ti.productName as productName, SUM(ti.quantity) as totalQuantity, SUM(ti.subtotal) as totalRevenue
+        FROM transaction_items ti
+        INNER JOIN transactions t ON ti.transactionId = t.id
+        WHERE t.transactionDate BETWEEN :startDate AND :endDate
+        AND t.status = 'COMPLETED' AND t.isDeleted = 0
+        AND t.cashierId = :cashierId
+        GROUP BY ti.productId
+        ORDER BY totalQuantity DESC
+        LIMIT :limit
+    """)
+    suspend fun getTopSellingProductsByRangeAndCashier(startDate: Long, endDate: Long, cashierId: String, limit: Int = 10): List<ProductSalesRow>
+
+    // Worst selling products (least quantity > 0) in date range (all cashiers)
+    @Query("""
+        SELECT ti.productId as productId, ti.productName as productName, SUM(ti.quantity) as totalQuantity, SUM(ti.subtotal) as totalRevenue
+        FROM transaction_items ti
+        INNER JOIN transactions t ON ti.transactionId = t.id
+        WHERE t.transactionDate BETWEEN :startDate AND :endDate
+        AND t.status = 'COMPLETED' AND t.isDeleted = 0
+        GROUP BY ti.productId
+        HAVING SUM(ti.quantity) > 0
+        ORDER BY totalQuantity ASC
+        LIMIT :limit
+    """)
+    suspend fun getWorstSellingProductsByRange(startDate: Long, endDate: Long, limit: Int = 10): List<ProductSalesRow>
+
+    // Worst selling products for specific cashier
+    @Query("""
+        SELECT ti.productId as productId, ti.productName as productName, SUM(ti.quantity) as totalQuantity, SUM(ti.subtotal) as totalRevenue
+        FROM transaction_items ti
+        INNER JOIN transactions t ON ti.transactionId = t.id
+        WHERE t.transactionDate BETWEEN :startDate AND :endDate
+        AND t.status = 'COMPLETED' AND t.isDeleted = 0
+        AND t.cashierId = :cashierId
+        GROUP BY ti.productId
+        HAVING SUM(ti.quantity) > 0
+        ORDER BY totalQuantity ASC
+        LIMIT :limit
+    """)
+    suspend fun getWorstSellingProductsByRangeAndCashier(startDate: Long, endDate: Long, cashierId: String, limit: Int = 10): List<ProductSalesRow>
 }

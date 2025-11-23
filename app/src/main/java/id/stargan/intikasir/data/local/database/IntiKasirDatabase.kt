@@ -2,8 +2,20 @@ package id.stargan.intikasir.data.local.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import id.stargan.intikasir.data.local.dao.*
-import id.stargan.intikasir.data.local.entity.*
+import id.stargan.intikasir.data.local.dao.UserDao
+import id.stargan.intikasir.data.local.dao.CategoryDao
+import id.stargan.intikasir.data.local.dao.ProductDao
+import id.stargan.intikasir.data.local.dao.TransactionDao
+import id.stargan.intikasir.data.local.dao.TransactionItemDao
+import id.stargan.intikasir.data.local.dao.StoreSettingsDao
+import id.stargan.intikasir.data.local.dao.ExpenseDao
+import id.stargan.intikasir.data.local.entity.UserEntity
+import id.stargan.intikasir.data.local.entity.CategoryEntity
+import id.stargan.intikasir.data.local.entity.ProductEntity
+import id.stargan.intikasir.data.local.entity.TransactionEntity
+import id.stargan.intikasir.data.local.entity.TransactionItemEntity
+import id.stargan.intikasir.data.local.entity.StoreSettingsEntity
+import id.stargan.intikasir.data.local.entity.ExpenseEntity
 
 @Database(
     entities = [

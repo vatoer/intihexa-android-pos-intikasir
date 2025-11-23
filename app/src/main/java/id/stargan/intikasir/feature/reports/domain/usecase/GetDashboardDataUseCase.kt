@@ -7,8 +7,7 @@ import javax.inject.Inject
 class GetDashboardDataUseCase @Inject constructor(
     private val repository: ReportsRepository
 ) {
-    suspend operator fun invoke(startDate: Long, endDate: Long): ReportDashboard {
-        return repository.getDashboardData(startDate, endDate)
+    suspend operator fun invoke(startDate: Long, endDate: Long, cashierId: String? = null): ReportDashboard {
+        return repository.getDashboardData(startDate, endDate, cashierId)
     }
 }
-

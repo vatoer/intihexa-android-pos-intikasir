@@ -22,8 +22,7 @@ import id.stargan.intikasir.feature.history.ui.components.TransactionRow
 import id.stargan.intikasir.feature.history.util.ExportUtil
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 /**
  * History list screen showing all transactions with filtering and export capabilities.
@@ -37,7 +36,6 @@ fun HistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")) }
     val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -191,7 +189,6 @@ fun HistoryScreen(
                         TransactionRow(
                             tx = tx,
                             currency = currency,
-                            dateFormatter = dateFormatter,
                             onClick = { onOpenDetail(tx.id) }
                         )
                     }
@@ -200,4 +197,3 @@ fun HistoryScreen(
         }
     }
 }
-

@@ -4,11 +4,13 @@ import android.content.Context
 import id.stargan.intikasir.feature.history.util.ExportUtil
 import id.stargan.intikasir.feature.reports.domain.model.*
 import id.stargan.intikasir.feature.reports.domain.repository.ReportsRepository
+import id.stargan.intikasir.util.DateFormatUtils
 import kotlinx.coroutines.flow.first
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 import javax.inject.Inject
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.FileOutputStream
 
 class ExportReportUseCase @Inject constructor(
     private val repository: ReportsRepository
@@ -35,11 +37,10 @@ class ExportReportUseCase @Inject constructor(
         filter: ReportFilter
     ): File {
         val report = repository.getExpenseReport(filter)
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Laporan_Pengeluaran_${dateFormat.format(Date())}.csv"
+        val fileName = "Laporan_Pengeluaran_${DateFormatUtils.fileTimestamp()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("id", "ID"))
+        val dateFormatterPattern = "dd/MM/yyyy"
 
         file.bufferedWriter().use { writer ->
             // Header
@@ -47,7 +48,7 @@ class ExportReportUseCase @Inject constructor(
 
             // Data
             report.expenses.forEach { exp ->
-                writer.write("${dateFormatter.format(Date(exp.date))},")
+                writer.write("${DateFormatUtils.formatEpochMillis(exp.date, dateFormatterPattern)},")
                 writer.write("${getCategoryName(exp.category)},")
                 writer.write("\"${exp.description.replace("\"", "\"\"")}\",")
                 writer.write("${exp.amount},")
@@ -79,15 +80,14 @@ class ExportReportUseCase @Inject constructor(
         endDate: Long
     ): File {
         val report = repository.getProfitLossReport(startDate, endDate)
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Laporan_Laba_Rugi_${dateFormat.format(Date())}.csv"
+        val fileName = "Laporan_Laba_Rugi_${DateFormatUtils.fileTimestamp()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("id", "ID"))
+        val dateFormatterPattern = "dd/MM/yyyy"
 
         file.bufferedWriter().use { writer ->
             writer.write("LAPORAN LABA RUGI\n")
-            writer.write("Periode: ${dateFormatter.format(Date(startDate))} - ${dateFormatter.format(Date(endDate))}\n")
+            writer.write("Periode: ${DateFormatUtils.formatEpochMillis(startDate, dateFormatterPattern)} - ${DateFormatUtils.formatEpochMillis(endDate, dateFormatterPattern)}\n")
             writer.write("\n")
 
             writer.write("PENDAPATAN\n")
@@ -110,7 +110,7 @@ class ExportReportUseCase @Inject constructor(
             writer.write("\n")
 
             writer.write("LABA BERSIH,${report.netProfit}\n")
-            writer.write("Margin Laba,${String.format("%.2f", report.profitMargin)}%\n")
+            writer.write("Margin Laba,${String.format(Locale.getDefault(), "%.2f", report.profitMargin)}%\n")
         }
 
         return file
@@ -123,15 +123,14 @@ class ExportReportUseCase @Inject constructor(
         context: Context,
         dashboard: ReportDashboard
     ): File {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Ringkasan_Dashboard_${dateFormat.format(Date())}.csv"
+        val fileName = "Ringkasan_Dashboard_${DateFormatUtils.fileTimestamp()}.csv"
         val file = File(context.cacheDir, fileName)
 
-        val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale("id", "ID"))
+        val dateFormatterPattern = "dd/MM/yyyy"
 
         file.bufferedWriter().use { writer ->
             writer.write("RINGKASAN DASHBOARD\n")
-            writer.write("Periode: ${dateFormatter.format(Date(dashboard.periodStart))} - ${dateFormatter.format(Date(dashboard.periodEnd))}\n")
+            writer.write("Periode: ${DateFormatUtils.formatEpochMillis(dashboard.periodStart, dateFormatterPattern)} - ${DateFormatUtils.formatEpochMillis(dashboard.periodEnd, dateFormatterPattern)}\n")
             writer.write("\n")
 
             writer.write("METRIK UTAMA\n")
@@ -151,14 +150,183 @@ class ExportReportUseCase @Inject constructor(
             writer.write("METODE PEMBAYARAN\n")
             writer.write("Metode,Jumlah,Transaksi,Persentase\n")
             dashboard.paymentMethodBreakdown.forEach { pm ->
-                writer.write("${pm.method.name},${pm.amount},${pm.count},${String.format("%.2f", pm.percentage)}%\n")
+                writer.write("${pm.method.name},${pm.amount},${pm.count},${String.format(Locale.getDefault(), "%.2f", pm.percentage)}%\n")
             }
             writer.write("\n")
 
             writer.write("KATEGORI PENGELUARAN\n")
             writer.write("Kategori,Jumlah,Transaksi,Persentase\n")
             dashboard.expenseCategoryBreakdown.forEach { ec ->
-                writer.write("${getCategoryName(ec.category)},${ec.amount},${ec.count},${String.format("%.2f", ec.percentage)}%\n")
+                writer.write("${getCategoryName(ec.category)},${ec.amount},${ec.count},${String.format(Locale.getDefault(), "%.2f", ec.percentage)}%\n")
+            }
+        }
+
+        return file
+    }
+
+    /**
+     * Export dashboard summary to XLSX
+     */
+    suspend fun exportDashboardSummaryXlsx(
+        context: Context,
+        dashboard: ReportDashboard
+    ): File {
+        val fileName = "Ringkasan_Dashboard_${DateFormatUtils.fileTimestamp()}.xlsx"
+        val file = File(context.cacheDir, fileName)
+
+        XSSFWorkbook().use { workbook ->
+            val dateFormatterPattern = "dd/MM/yyyy"
+
+            // Summary sheet
+            val summarySheet = workbook.createSheet("Summary")
+            var rowIndex = 0
+            var row = summarySheet.createRow(rowIndex++)
+            row.createCell(0).setCellValue("Periode")
+            row.createCell(1).setCellValue("${DateFormatUtils.formatEpochMillis(dashboard.periodStart, dateFormatterPattern)} - ${DateFormatUtils.formatEpochMillis(dashboard.periodEnd, dateFormatterPattern)}")
+
+            row = summarySheet.createRow(rowIndex++)
+            row.createCell(0).setCellValue("Total Pendapatan")
+            row.createCell(1).setCellValue(dashboard.totalRevenue)
+
+            row = summarySheet.createRow(rowIndex++)
+            row.createCell(0).setCellValue("Total Pengeluaran")
+            row.createCell(1).setCellValue(dashboard.totalExpense)
+
+            row = summarySheet.createRow(rowIndex++)
+            row.createCell(0).setCellValue("Laba Bersih")
+            row.createCell(1).setCellValue(dashboard.netProfit)
+
+            row = summarySheet.createRow(rowIndex++)
+            row.createCell(0).setCellValue("Jumlah Transaksi")
+            row.createCell(1).setCellValue(dashboard.transactionCount.toDouble())
+
+            // Top Products sheet
+            val topSheet = workbook.createSheet("Top Products")
+            var r = topSheet.createRow(0)
+            r.createCell(0).setCellValue("Produk")
+            r.createCell(1).setCellValue("Jumlah Terjual")
+            r.createCell(2).setCellValue("Pendapatan")
+            dashboard.topProducts.forEachIndexed { idx, p ->
+                val rr = topSheet.createRow(idx + 1)
+                rr.createCell(0).setCellValue(p.productName)
+                rr.createCell(1).setCellValue(p.quantitySold.toDouble())
+                rr.createCell(2).setCellValue(p.revenue)
+            }
+
+            // Payment Methods sheet
+            val pmSheet = workbook.createSheet("Payment Methods")
+            var pr = pmSheet.createRow(0)
+            pr.createCell(0).setCellValue("Metode")
+            pr.createCell(1).setCellValue("Jumlah")
+            pr.createCell(2).setCellValue("Transaksi")
+            pr.createCell(3).setCellValue("Persentase")
+            dashboard.paymentMethodBreakdown.forEachIndexed { idx, pm ->
+                val rr = pmSheet.createRow(idx + 1)
+                rr.createCell(0).setCellValue(pm.method.name)
+                rr.createCell(1).setCellValue(pm.amount)
+                rr.createCell(2).setCellValue(pm.count.toDouble())
+                rr.createCell(3).setCellValue(pm.percentage)
+            }
+
+            // Expense categories sheet
+            val ecSheet = workbook.createSheet("Expense Categories")
+            var er = ecSheet.createRow(0)
+            er.createCell(0).setCellValue("Kategori")
+            er.createCell(1).setCellValue("Jumlah")
+            er.createCell(2).setCellValue("Transaksi")
+            er.createCell(3).setCellValue("Persentase")
+            dashboard.expenseCategoryBreakdown.forEachIndexed { idx, ec ->
+                val rr = ecSheet.createRow(idx + 1)
+                rr.createCell(0).setCellValue(getCategoryName(ec.category))
+                rr.createCell(1).setCellValue(ec.amount)
+                rr.createCell(2).setCellValue(ec.count.toDouble())
+                rr.createCell(3).setCellValue(ec.percentage)
+            }
+
+            FileOutputStream(file).use { fos ->
+                workbook.write(fos)
+            }
+        }
+
+        return file
+    }
+
+    /**
+     * Export worst products report to CSV
+     */
+    suspend fun exportWorstProducts(
+        context: Context,
+        worstReport: WorstProductsReport,
+        periodStart: Long,
+        periodEnd: Long
+    ): File {
+        val fileName = "Worst_Products_${DateFormatUtils.fileTimestamp()}.csv"
+        val file = File(context.cacheDir, fileName)
+
+        val dateFormatterPattern = "dd/MM/yyyy"
+
+        file.bufferedWriter().use { writer ->
+            writer.write("LAPORAN WORST PRODUCTS\n")
+            writer.write("Periode: ${DateFormatUtils.formatEpochMillis(periodStart, dateFormatterPattern)} - ${DateFormatUtils.formatEpochMillis(periodEnd, dateFormatterPattern)}\n")
+            writer.write("\n")
+
+            writer.write("WORST PRODUCTS (terurut dari jumlah terjual paling sedikit)\n")
+            writer.write("Produk,Jumlah Terjual,Pendapatan\n")
+            worstReport.worstProducts.forEach { p ->
+                writer.write("${p.productName},${p.quantitySold},${p.revenue}\n")
+            }
+
+            writer.write("\nNOT SOLD (produk dengan penjualan 0)\n")
+            writer.write("Produk,Stok\n")
+            worstReport.notSold.forEach { p ->
+                writer.write("${p.productName},${p.stock}\n")
+            }
+        }
+
+        return file
+    }
+
+    /**
+     * Export worst products report to XLSX
+     */
+    suspend fun exportWorstProductsXlsx(
+        context: Context,
+        worstReport: WorstProductsReport,
+        periodStart: Long,
+        periodEnd: Long
+    ): File {
+        val fileName = "Worst_Products_${DateFormatUtils.fileTimestamp()}.xlsx"
+        val file = File(context.cacheDir, fileName)
+
+        XSSFWorkbook().use { workbook ->
+            val dateFormatterPattern = "dd/MM/yyyy"
+
+            // Worst products sheet
+            val worstSheet = workbook.createSheet("Worst Products")
+            var r = worstSheet.createRow(0)
+            r.createCell(0).setCellValue("Produk")
+            r.createCell(1).setCellValue("Jumlah Terjual")
+            r.createCell(2).setCellValue("Pendapatan")
+            worstReport.worstProducts.forEachIndexed { idx, p ->
+                val rr = worstSheet.createRow(idx + 1)
+                rr.createCell(0).setCellValue(p.productName)
+                rr.createCell(1).setCellValue(p.quantitySold.toDouble())
+                rr.createCell(2).setCellValue(p.revenue)
+            }
+
+            // Not sold sheet
+            val notSoldSheet = workbook.createSheet("Not Sold")
+            var nr = notSoldSheet.createRow(0)
+            nr.createCell(0).setCellValue("Produk")
+            nr.createCell(1).setCellValue("Stok")
+            worstReport.notSold.forEachIndexed { idx, p ->
+                val rr = notSoldSheet.createRow(idx + 1)
+                rr.createCell(0).setCellValue(p.productName)
+                rr.createCell(1).setCellValue(p.stock.toDouble())
+            }
+
+            FileOutputStream(file).use { fos ->
+                workbook.write(fos)
             }
         }
 
@@ -178,4 +346,3 @@ class ExportReportUseCase @Inject constructor(
         }
     }
 }
-

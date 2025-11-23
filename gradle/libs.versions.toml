@@ -26,6 +26,7 @@ coil = "2.7.0"
 detekt = "1.23.6"
 ktlintGradle = "12.1.0"
 security = "1.1.0-alpha06"
+poi = "5.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -99,6 +100,9 @@ ucrop = { group = "com.github.yalantis", name = "ucrop", version.ref = "ucrop" }
 
 # Security
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security" }
+
+# Apache POI for XLSX
+poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "poi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

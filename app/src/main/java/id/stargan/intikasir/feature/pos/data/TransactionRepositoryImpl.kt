@@ -10,8 +10,7 @@ import id.stargan.intikasir.data.local.entity.PaymentMethod
 import id.stargan.intikasir.data.local.entity.TransactionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
-import java.util.Date
+import id.stargan.intikasir.util.DateFormatUtils
 import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -38,8 +37,7 @@ class TransactionRepositoryImpl @Inject constructor(
         status: TransactionStatus
     ): String = withContext(Dispatchers.IO) {
         // Generate transaction number (INV-YYYYMMDD-####)
-        val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-        val datePart = dateFormat.format(Date())
+        val datePart = DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), "yyyyMMdd")
         val prefix = "INV-$datePart"
         val lastNumber = transactionDao.getLastTransactionNumber(prefix) // e.g. INV-20231115-0007
         val nextSeq = (lastNumber?.substringAfterLast('-')?.toIntOrNull() ?: 0) + 1
@@ -99,8 +97,7 @@ class TransactionRepositoryImpl @Inject constructor(
         total: Double,
         notes: String?
     ): String = withContext(Dispatchers.IO) {
-        val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-        val datePart = dateFormat.format(Date())
+        val datePart = DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), "yyyyMMdd")
         val prefix = "INV-$datePart"
         val lastNumber = transactionDao.getLastTransactionNumber(prefix)
         // Reset nextSeq daily: only count for today (prefix includes date)
@@ -150,8 +147,7 @@ class TransactionRepositoryImpl @Inject constructor(
         cashierId: String,
         cashierName: String
     ): String = withContext(Dispatchers.IO) {
-        val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
-        val datePart = dateFormat.format(Date())
+        val datePart = DateFormatUtils.formatEpochMillis(System.currentTimeMillis(), "yyyyMMdd")
         val prefix = "TX-$datePart"
         val lastNumber = transactionDao.getLastTransactionNumber(prefix)
         val nextSeq = (lastNumber?.substringAfterLast('-')?.toIntOrNull() ?: 0) + 1

@@ -12,8 +12,8 @@ import androidx.compose.ui.unit.dp
 import id.stargan.intikasir.data.local.entity.ExpenseEntity
 import id.stargan.intikasir.data.local.entity.ExpenseCategory
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
+import java.util.Locale
 
 /**
  * Reusable expense item card
@@ -24,8 +24,8 @@ fun ExpenseItemCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
-    val dateFormat = remember { SimpleDateFormat("HH:mm", Locale("id", "ID")) }
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
+    val timeFormatPattern = "HH:mm"
 
     ElevatedCard(
         onClick = onClick,
@@ -71,7 +71,7 @@ fun ExpenseItemCard(
                         maxLines = 1
                     )
                     Text(
-                        text = "${dateFormat.format(Date(expense.date))} • ${expense.paymentMethod.name}",
+                        text = "${DateFormatUtils.formatEpochMillis(expense.date, timeFormatPattern)} • ${expense.paymentMethod.name}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -99,7 +99,7 @@ fun CategorySummaryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
 
     OutlinedCard(
         onClick = onClick,
@@ -140,8 +140,8 @@ fun DailySummaryCard(
     count: Int,
     modifier: Modifier = Modifier
 ) {
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
-    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")) }
+    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
+    val dateFormatPattern = "dd MMM yyyy"
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -165,7 +165,7 @@ fun DailySummaryCard(
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Text(
-                        text = dateFormat.format(Date(date)),
+                        text = DateFormatUtils.formatEpochMillis(date, dateFormatPattern),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -210,4 +210,3 @@ fun getCategoryLabel(category: ExpenseCategory) = when (category) {
     ExpenseCategory.TRANSPORT -> "Transport"
     ExpenseCategory.MISC -> "Lain-lain"
 }
-

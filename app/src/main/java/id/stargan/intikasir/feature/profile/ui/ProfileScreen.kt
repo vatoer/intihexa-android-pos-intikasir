@@ -12,9 +12,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,8 +25,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -71,10 +70,6 @@ fun ProfileScreen(
                     Text("Informasi Akun", style = MaterialTheme.typography.titleMedium)
 
                     // Username read-only (from current user)
-                    val username = viewModel.uiState.collectAsState().value.userId?.let { _ ->
-                        // we don't store username in viewmodel state directly; show hint if empty
-                        "" // will be enriched later if needed
-                    }
                     OutlinedTextField(
                         value = uiState.username.ifBlank { "(username tidak tersedia)" },
                         onValueChange = {},
@@ -100,7 +95,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (uiState.isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                            CircularProgressIndicator(modifier = Modifier.height(18.dp))
                             Spacer(Modifier.width(8.dp))
                         }
                         Text("Simpan Nama")
@@ -112,8 +107,6 @@ fun ProfileScreen(
             ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Keamanan PIN", style = MaterialTheme.typography.titleMedium)
-
-
 
                     OutlinedTextField(
                         value = uiState.newPin,
@@ -172,7 +165,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (uiState.isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                            CircularProgressIndicator(modifier = Modifier.height(18.dp))
                             Spacer(Modifier.width(8.dp))
                         }
                         Text("Simpan PIN")

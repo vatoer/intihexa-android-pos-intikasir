@@ -1,6 +1,11 @@
 package id.stargan.intikasir.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Query
+import androidx.room.Insert
+import androidx.room.Update
+import androidx.room.Delete
+import androidx.room.OnConflictStrategy
 import id.stargan.intikasir.data.local.entity.CategoryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -37,4 +42,3 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE syncedAt IS NULL OR updatedAt > syncedAt")
     suspend fun getUnsyncedCategories(): List<CategoryEntity>
 }
-

@@ -11,8 +11,8 @@ import id.stargan.intikasir.domain.model.StoreSettings
 import java.io.File
 import java.io.FileOutputStream
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.*
+import id.stargan.intikasir.util.DateFormatUtils
+import java.util.Locale
 
 /**
  * Generate receipt as PNG image (thermal printer style)
@@ -48,7 +48,7 @@ object ReceiptImageGenerator {
         val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply {
             maximumFractionDigits = 0
         }
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
+        // use DateFormatUtils for date formatting
 
         // Calculate height needed
         var yPosition = PADDING_PX
@@ -95,7 +95,8 @@ object ReceiptImageGenerator {
         canvas.drawColor(Color.WHITE)
 
         // Draw receipt content
-        drawReceipt(canvas, context, settings, transaction, items, nf, dateFormat)
+        val transactionDateStr = DateFormatUtils.formatEpochMillis(transaction.transactionDate, "dd/MM/yyyy HH:mm")
+        drawReceipt(canvas, context, settings, transaction, items, nf, transactionDateStr)
 
         // Save to file
         val fileName = "receipt_${transaction.transactionNumber}_${System.currentTimeMillis()}.png"
@@ -126,7 +127,7 @@ object ReceiptImageGenerator {
         transaction: TransactionEntity,
         items: List<TransactionItemEntity>,
         nf: NumberFormat,
-        dateFormat: SimpleDateFormat
+        transactionDateStr: String
     ) {
         var y = PADDING_PX.toFloat()
 
@@ -191,7 +192,7 @@ object ReceiptImageGenerator {
         canvas.drawText("No: ${transaction.transactionNumber}", PADDING_PX.toFloat(), y, textPaint)
         y += LINE_HEIGHT_PX
 
-        canvas.drawText("Tgl: ${dateFormat.format(Date(transaction.transactionDate))}", PADDING_PX.toFloat(), y, textPaint)
+        canvas.drawText("Tgl: $transactionDateStr", PADDING_PX.toFloat(), y, textPaint)
         y += LINE_HEIGHT_PX
 
         canvas.drawText("Kasir: ${transaction.cashierName}", PADDING_PX.toFloat(), y, textPaint)
@@ -360,4 +361,3 @@ object ReceiptImageGenerator {
         context.startActivity(chooser)
     }
 }
-

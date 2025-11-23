@@ -22,11 +22,10 @@ import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.domain.model.StoreSettings
 import id.stargan.intikasir.util.BluetoothPermissionHelper
+import id.stargan.intikasir.util.DateFormatUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import kotlin.math.min
 
@@ -45,8 +44,7 @@ object ReceiptPrinter {
         val page = doc.startPage(pageInfo)
         val canvas = page.canvas
 
-        val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-        val dateFormat = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale("id", "ID"))
+        val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -156,7 +154,7 @@ object ReceiptPrinter {
         }
 
         // Transaction header
-        val dateStr = dateFormat.format(Date(transaction.updatedAt))
+        val dateStr = DateFormatUtils.formatEpochMillis(transaction.updatedAt, "dd MMMM yyyy, HH:mm")
         canvas.drawText("No. Transaksi:", xPadding, y, boldPaint)
         canvas.drawText(transaction.transactionNumber, xPadding + 100f, y, normalPaint)
         y += 16
@@ -350,9 +348,7 @@ object ReceiptPrinter {
         val page = doc.startPage(pageInfo)
         val canvas = page.canvas
 
-        val nf = NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("id").setRegion("ID").build())
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("id", "ID"))
-
+        val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = 18f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
@@ -457,7 +453,7 @@ object ReceiptPrinter {
         drawLine(bold = true)
         
         // Transaction info
-        val dateStr = dateFormat.format(Date(transaction.updatedAt))
+        val dateStr = DateFormatUtils.formatEpochMillis(transaction.updatedAt, "dd/MM/yyyy HH:mm")
         canvas.drawText("No: ${transaction.transactionNumber}", left, y, textPaint)
         y += 16f
         canvas.drawText("Tanggal: $dateStr", left, y, textPaint)
@@ -588,8 +584,7 @@ object ReceiptPrinter {
         settings: StoreSettings?,
         transaction: TransactionEntity
     ): Result {
-        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-        val fileName = "Antrian_${transaction.transactionNumber}_${dateFormat.format(Date())}.pdf"
+        val fileName = "Antrian_${transaction.transactionNumber}_${DateFormatUtils.fileTimestamp()}.pdf"
         val file = File(context.cacheDir, fileName)
 
         val pageWidth = if (settings?.paperWidthMm?.let { it >= 80 } == true) 576f else 384f
@@ -632,13 +627,12 @@ object ReceiptPrinter {
         titlePaint.textAlign = Paint.Align.LEFT
 
         // Transaction summary
-        val dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
         canvas.drawText("Transaksi: ${transaction.transactionNumber}", left, y, paint)
         y += 30f
-        canvas.drawText("Waktu: ${dateFormatter.format(Date(transaction.transactionDate))}", left, y, paint)
+        canvas.drawText("Waktu: ${DateFormatUtils.formatEpochMillis(transaction.transactionDate, "dd MMM yyyy, HH:mm")}", left, y, paint)
         y += 30f
 
-        val nf = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        val nf = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID"))
         canvas.drawText("Total: ${nf.format(transaction.total).replace("Rp", "Rp ")}", left, y, boldPaint)
         y += 40f
 
