@@ -45,7 +45,9 @@ class ReportsViewModel @Inject constructor(
         val error: String? = null,
         val successMessage: String? = null,
 
+        val showFilter: Boolean = false,
         val showPeriodPicker: Boolean = false,
+        val showCustomDatePicker: Boolean = false,
         val showExportDialog: Boolean = false
     )
 
@@ -67,12 +69,19 @@ class ReportsViewModel @Inject constructor(
             is ReportsEvent.SelectTab -> selectTab(event.tab)
             is ReportsEvent.ShowPeriodPicker -> _uiState.update { it.copy(showPeriodPicker = true) }
             is ReportsEvent.HidePeriodPicker -> _uiState.update { it.copy(showPeriodPicker = false) }
+            is ReportsEvent.ShowCustomDatePicker -> _uiState.update { it.copy(showCustomDatePicker = true) }
+            is ReportsEvent.HideCustomDatePicker -> _uiState.update { it.copy(showCustomDatePicker = false) }
             is ReportsEvent.ShowExportDialog -> _uiState.update { it.copy(showExportDialog = true) }
             is ReportsEvent.HideExportDialog -> _uiState.update { it.copy(showExportDialog = false) }
-            is ReportsEvent.Refresh -> loadData()
+            is ReportsEvent.Refresh -> {
+                // Refresh both reports so UI is consistent across tabs
+                loadDashboard()
+                loadProfitLoss()
+            }
             is ReportsEvent.DismissError -> _uiState.update { it.copy(error = null) }
             is ReportsEvent.DismissSuccess -> _uiState.update { it.copy(successMessage = null) }
             is ReportsEvent.LoadWorstProducts -> loadWorstProducts(event.lowThreshold)
+            is ReportsEvent.ToggleFilter -> _uiState.update { it.copy(showFilter = !it.showFilter) }
         }
     }
 
@@ -86,7 +95,9 @@ class ReportsViewModel @Inject constructor(
                 showPeriodPicker = false
             )
         }
-        loadData()
+        // Refresh both dashboard and profit/loss so the selected period applies across tabs
+        loadDashboard()
+        loadProfitLoss()
     }
 
     private fun selectCustomPeriod(startDate: Long, endDate: Long) {
@@ -98,7 +109,9 @@ class ReportsViewModel @Inject constructor(
                 showPeriodPicker = false
             )
         }
-        loadData()
+        // For custom period also refresh both tabs' data
+        loadDashboard()
+        loadProfitLoss()
     }
 
     private fun selectTab(tab: ReportTab) {
@@ -391,10 +404,13 @@ sealed class ReportsEvent {
     data class LoadWorstProducts(val lowThreshold: Int = 5) : ReportsEvent()
     object ShowPeriodPicker : ReportsEvent()
     object HidePeriodPicker : ReportsEvent()
+    object ShowCustomDatePicker : ReportsEvent()
+    object HideCustomDatePicker : ReportsEvent()
     object ShowExportDialog : ReportsEvent()
     object HideExportDialog : ReportsEvent()
     object Refresh : ReportsEvent()
     object DismissError : ReportsEvent()
     object DismissSuccess : ReportsEvent()
     data class SetCashierFilter(val cashierId: String?) : ReportsEvent()
+    object ToggleFilter : ReportsEvent()
 }

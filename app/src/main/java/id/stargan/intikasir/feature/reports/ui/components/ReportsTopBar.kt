@@ -15,7 +15,7 @@ import id.stargan.intikasir.feature.reports.ui.utils.getPeriodLabel
 fun ReportsTopBar(
     selectedPeriod: PeriodType,
     onNavigateBack: () -> Unit,
-    onPeriodClick: () -> Unit,
+    onToggleFilter: () -> Unit,
     onRefreshClick: () -> Unit,
     onExportClick: () -> Unit
 ) {
@@ -30,13 +30,9 @@ fun ReportsTopBar(
             }
         },
         actions = {
-            // Period selector
-            TextButton(onClick = onPeriodClick) {
+            // Period selector (toggle inline filter)
+            TextButton(onClick = onToggleFilter) {
                 Text(getPeriodLabel(selectedPeriod))
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = null
-                )
             }
 
             // Refresh
@@ -63,4 +59,3 @@ fun ReportsTopBar(
         )
     )
 }
-

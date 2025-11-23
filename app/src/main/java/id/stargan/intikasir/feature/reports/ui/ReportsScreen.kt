@@ -29,8 +29,10 @@ import id.stargan.intikasir.feature.reports.ui.components.ProfitLossContent
 import id.stargan.intikasir.feature.reports.ui.components.ReportsTabRow
 import id.stargan.intikasir.feature.reports.ui.components.ReportsTopBar
 import id.stargan.intikasir.feature.reports.ui.components.WorstProductsContent
+import id.stargan.intikasir.feature.reports.ui.components.ReportsFilterBar
 import id.stargan.intikasir.feature.reports.ui.dialogs.ExportDialog
 import id.stargan.intikasir.feature.reports.ui.dialogs.PeriodPickerDialog
+import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -69,7 +71,7 @@ fun ReportsScreen(
             ReportsTopBar(
                 selectedPeriod = uiState.selectedPeriod,
                 onNavigateBack = onNavigateBack,
-                onPeriodClick = { viewModel.onEvent(ReportsEvent.ShowPeriodPicker) },
+                onToggleFilter = { viewModel.onEvent(ReportsEvent.ToggleFilter) },
                 onRefreshClick = { viewModel.onEvent(ReportsEvent.Refresh) },
                 onExportClick = { viewModel.onEvent(ReportsEvent.ShowExportDialog) }
             )
@@ -82,6 +84,18 @@ fun ReportsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Inline filter bar (like History)
+            if (uiState.showFilter) {
+                ReportsFilterBar(
+                    selectedPeriod = uiState.selectedPeriod,
+                    startDate = uiState.startDate,
+                    endDate = uiState.endDate,
+                    onPeriodChange = { viewModel.onEvent(ReportsEvent.SelectPeriod(it)) },
+                    onCustomRangeSelected = { s, e -> viewModel.onEvent(ReportsEvent.SelectCustomPeriod(s, e)) },
+                    onApply = { viewModel.onEvent(ReportsEvent.Refresh) }
+                )
+            }
+
             // Tabs
             ReportsTabRow(
                 selectedTab = uiState.selectedTab,
@@ -164,9 +178,27 @@ fun ReportsScreen(
         PeriodPickerDialog(
             currentPeriod = uiState.selectedPeriod,
             onPeriodSelected = { period ->
-                viewModel.onEvent(ReportsEvent.SelectPeriod(period))
+                if (period == id.stargan.intikasir.feature.reports.domain.model.PeriodType.CUSTOM) {
+                    // Open custom date range picker
+                    viewModel.onEvent(ReportsEvent.HidePeriodPicker)
+                    viewModel.onEvent(ReportsEvent.ShowCustomDatePicker)
+                } else {
+                    viewModel.onEvent(ReportsEvent.SelectPeriod(period))
+                }
             },
             onDismiss = { viewModel.onEvent(ReportsEvent.HidePeriodPicker) }
+        )
+    }
+
+    // Custom Date Range Picker (reuse history component)
+    if (uiState.showCustomDatePicker) {
+        DateRangePickerModal(
+            showDialog = uiState.showCustomDatePicker,
+            onDismiss = { viewModel.onEvent(ReportsEvent.HideCustomDatePicker) },
+            onDateRangeSelected = { start, end ->
+                viewModel.onEvent(ReportsEvent.SelectCustomPeriod(start, end))
+                viewModel.onEvent(ReportsEvent.HideCustomDatePicker)
+            }
         )
     }
 

@@ -28,7 +28,8 @@ fun PeriodPickerDialog(
         title = { Text("Pilih Periode") },
         text = {
             Column {
-                PeriodType.entries.filter { it != PeriodType.CUSTOM }.forEach { period ->
+                // Include CUSTOM option so the caller can handle opening a date-range picker
+                PeriodType.entries.forEach { period ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
