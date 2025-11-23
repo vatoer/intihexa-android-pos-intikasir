@@ -2,7 +2,6 @@ package id.stargan.intikasir.feature.expense.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,12 +12,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.data.local.entity.ExpenseCategory
 import id.stargan.intikasir.feature.expense.ui.components.*
 import id.stargan.intikasir.feature.expense.util.ExpenseExportUtil
 import id.stargan.intikasir.feature.history.ui.components.DateRangePickerModal
 import id.stargan.intikasir.feature.history.ui.components.formatDateRange
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import androidx.compose.runtime.collectAsState
+import id.stargan.intikasir.domain.model.UserRole
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -55,6 +60,16 @@ fun ExpenseListScreen(
             viewModel.onEvent(ExpenseEvent.DismissToast)
         }
     }
+
+    // Permission checks
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canViewExpense = usePermission(securityVm.observePermission("CASHIER") { it.canViewExpense })
+    val canCreateExpense = usePermission(securityVm.observePermission("CASHIER") { it.canCreateExpense })
+
+    // Detect admin via GetCurrentUserUseCase (reuse small role ViewModel from HomeNavGraph)
+    val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+    val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+    val isAdmin = currentUser?.role == UserRole.ADMIN
 
     Scaffold(
         topBar = {
@@ -113,8 +128,10 @@ fun ExpenseListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddExpense) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Pengeluaran")
+            if (canCreateExpense || isAdmin) {
+                FloatingActionButton(onClick = onAddExpense) {
+                    Icon(Icons.Default.Add, contentDescription = "Tambah Pengeluaran")
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -196,10 +213,12 @@ fun ExpenseListScreen(
                 }
             }
 
-            // Category filter chips (removed - now in filter bar)
-
             // Expense list
-            if (uiState.isLoading) {
+            if (!canViewExpense && !isAdmin) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Anda tidak memiliki izin untuk melihat pengeluaran")
+                }
+            } else if (uiState.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -236,7 +255,10 @@ fun ExpenseListScreen(
                     items(uiState.expenses) { expense ->
                         ExpenseItemCard(
                             expense = expense,
-                            onClick = { onExpenseClick(expense.id) }
+                            onClick = { onExpenseClick(expense.id) },
+                            onDelete = if (isAdmin || usePermission(securityVm.observePermission("CASHIER") { it.canDeleteExpense })) {
+                                { viewModel.onEvent(ExpenseEvent.DeleteExpense(expense.id)) }
+                            } else null
                         )
                     }
                 }
@@ -279,7 +301,7 @@ private fun ExpenseFilterBar(
         // Date range chips
         Text("Periode", style = MaterialTheme.typography.labelMedium)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExpenseDateRange.values().forEach { range ->
+            ExpenseDateRange.entries.forEach { range ->
                 FilterChip(
                     selected = selectedRange == range,
                     onClick = {
@@ -312,7 +334,7 @@ private fun ExpenseFilterBar(
                 onClick = { onCategoryChange(null) },
                 label = { Text("Semua") }
             )
-            ExpenseCategory.values().forEach { category ->
+            ExpenseCategory.entries.forEach { category ->
                 FilterChip(
                     selected = selectedCategory == category,
                     onClick = { onCategoryChange(category) },

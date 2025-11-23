@@ -50,6 +50,7 @@ import id.stargan.intikasir.data.local.entity.TransactionStatus
 import id.stargan.intikasir.feature.profile.ui.ProfileScreen
 import id.stargan.intikasir.feature.users.ui.UsersManagementScreen
 import id.stargan.intikasir.feature.reports.ui.ReportsScreen
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsScreen
 
 /**
  * Navigation graph untuk Home feature
@@ -270,6 +271,10 @@ fun NavGraphBuilder.homeNavGraph(
         ReportsScreen(
             onNavigateBack = { navController.navigateUp() }
         )
+    }
+
+    composable(HomeRoutes.SECURITY) {
+        SecuritySettingsScreen(onNavigateBack = { navController.navigateUp() })
     }
 
     // POS Screen (Kasir) - Reactive version

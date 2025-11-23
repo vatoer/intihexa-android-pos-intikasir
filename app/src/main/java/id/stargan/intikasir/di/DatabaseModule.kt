@@ -14,6 +14,7 @@ import id.stargan.intikasir.data.local.dao.TransactionDao
 import id.stargan.intikasir.data.local.dao.TransactionItemDao
 import id.stargan.intikasir.data.local.dao.StoreSettingsDao
 import id.stargan.intikasir.data.local.dao.ExpenseDao
+import id.stargan.intikasir.data.local.dao.RolePermissionDao
 import id.stargan.intikasir.data.local.database.DatabaseCallback
 import id.stargan.intikasir.data.local.database.IntiKasirDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -77,5 +78,11 @@ object DatabaseModule {
     @Singleton
     fun provideExpenseDao(database: IntiKasirDatabase): ExpenseDao {
         return database.expenseDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRolePermissionDao(database: IntiKasirDatabase): RolePermissionDao {
+        return database.rolePermissionDao()
     }
 }

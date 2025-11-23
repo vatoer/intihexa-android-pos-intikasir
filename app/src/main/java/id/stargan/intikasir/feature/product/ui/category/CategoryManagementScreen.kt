@@ -20,6 +20,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.domain.model.Category
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import id.stargan.intikasir.domain.model.UserRole
 
 /**
  * Category Management Screen
@@ -33,6 +38,13 @@ fun CategoryManagementScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canCreateCategory = usePermission(securityVm.observePermission("CASHIER") { it.canCreateCategory })
+    val canEditCategory = usePermission(securityVm.observePermission("CASHIER") { it.canEditCategory })
+    val canDeleteCategory = usePermission(securityVm.observePermission("CASHIER") { it.canDeleteCategory })
+    val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+    val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+    val isAdmin = currentUser?.role == UserRole.ADMIN
 
     // Handle error messages
     LaunchedEffect(uiState.error) {
@@ -72,10 +84,12 @@ fun CategoryManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.onEvent(CategoryManagementUiEvent.ShowAddDialog) }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Kategori")
+            if (isAdmin || canCreateCategory) {
+                FloatingActionButton(
+                    onClick = { viewModel.onEvent(CategoryManagementUiEvent.ShowAddDialog) }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Tambah Kategori")
+                }
             }
         },
         snackbarHost = {
@@ -114,7 +128,10 @@ fun CategoryManagementScreen(
                         },
                         onDeleteClick = {
                             viewModel.onEvent(CategoryManagementUiEvent.ShowDeleteDialog(category))
-                        }
+                        },
+                        isAdmin = isAdmin,
+                        canEditCategory = canEditCategory,
+                        canDeleteCategory = canDeleteCategory
                     )
                 }
             }
@@ -171,6 +188,9 @@ private fun CategoryCard(
     category: Category,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    isAdmin: Boolean,
+    canEditCategory: Boolean,
+    canDeleteCategory: Boolean,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -228,19 +248,23 @@ private fun CategoryCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                IconButton(onClick = onEditClick) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                if (isAdmin || canEditCategory) {
+                    IconButton(onClick = onEditClick) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Hapus",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                if (isAdmin || canDeleteCategory) {
+                    IconButton(onClick = onDeleteClick) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Hapus",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -425,4 +449,3 @@ private fun CategoryFormDialog(
         }
     )
 }
-

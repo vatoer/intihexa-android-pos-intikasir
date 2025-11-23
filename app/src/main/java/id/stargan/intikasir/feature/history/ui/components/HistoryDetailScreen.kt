@@ -50,11 +50,8 @@ import id.stargan.intikasir.feature.history.viewmodel.HistoryEvent
 import id.stargan.intikasir.feature.history.viewmodel.HistoryViewModel
 import id.stargan.intikasir.feature.pos.ui.components.OrderSummaryCard
 import id.stargan.intikasir.ui.common.components.TransactionActions
-import kotlinx.coroutines.launch
-import java.text.NumberFormat
 import id.stargan.intikasir.util.DateFormatUtils
 import java.util.Locale
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,10 +69,11 @@ fun HistoryDetailScreen(
 ) {
     val uiState by viewModel.detailUiState.collectAsState()
     val listUiState by viewModel.uiState.collectAsState()
-    val toastMessage by viewModel.toastMessage.collectAsState()
-    val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
+    val toastMessage by viewModel.toastMessage.collectAsState(initial = null)
+    val currency = remember { java.text.NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).apply { maximumFractionDigits = 0 } }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
+    var snackbarMessage by remember { mutableStateOf<String?>(null) }
 
     var printing by remember { mutableStateOf(false) }
 
@@ -259,10 +257,6 @@ fun HistoryDetailScreen(
                                 if (printing) return@TransactionActions
                                 printing = true
                                 onPrint(tx)
-                                scope.launch {
-                                    kotlinx.coroutines.delay(200)
-                                    printing = false
-                                }
                             }
                         } else null,
                         onShare = if (!uiState.isLoading && uiState.items.isNotEmpty()) {
@@ -272,20 +266,31 @@ fun HistoryDetailScreen(
                             {
                                 if (printing) return@TransactionActions
                                 onPrintQueue(tx)
-                                scope.launch { snackbarHostState.showSnackbar("Tiket antrian dicetak") }
+                                snackbarMessage = "Tiket antrian dicetak"
                             }
                         } else null,
                         onComplete = {
                             onComplete(tx)
-                            scope.launch { snackbarHostState.showSnackbar("Transaksi ditandai selesai") }
+                            snackbarMessage = "Transaksi ditandai selesai"
                         },
                         isAdmin = isAdmin,
                         onDeleteAdmin = { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) }
-                    )
+                     )
                 }
                 // Bottom spacing
                 item { Spacer(Modifier.height(32.dp)) }
             }
+        }
+    }
+
+    // Show snackbar message
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            snackbarMessage = null
         }
     }
 }

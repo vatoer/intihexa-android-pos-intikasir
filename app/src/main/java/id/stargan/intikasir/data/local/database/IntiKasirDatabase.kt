@@ -9,6 +9,7 @@ import id.stargan.intikasir.data.local.dao.TransactionDao
 import id.stargan.intikasir.data.local.dao.TransactionItemDao
 import id.stargan.intikasir.data.local.dao.StoreSettingsDao
 import id.stargan.intikasir.data.local.dao.ExpenseDao
+import id.stargan.intikasir.data.local.dao.RolePermissionDao
 import id.stargan.intikasir.data.local.entity.UserEntity
 import id.stargan.intikasir.data.local.entity.CategoryEntity
 import id.stargan.intikasir.data.local.entity.ProductEntity
@@ -16,6 +17,7 @@ import id.stargan.intikasir.data.local.entity.TransactionEntity
 import id.stargan.intikasir.data.local.entity.TransactionItemEntity
 import id.stargan.intikasir.data.local.entity.StoreSettingsEntity
 import id.stargan.intikasir.data.local.entity.ExpenseEntity
+import id.stargan.intikasir.data.local.entity.RolePermissionEntity
 
 @Database(
     entities = [
@@ -25,9 +27,10 @@ import id.stargan.intikasir.data.local.entity.ExpenseEntity
         TransactionEntity::class,
         TransactionItemEntity::class,
         StoreSettingsEntity::class,
-        ExpenseEntity::class
+        ExpenseEntity::class,
+        RolePermissionEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class IntiKasirDatabase : RoomDatabase() {
@@ -39,6 +42,7 @@ abstract class IntiKasirDatabase : RoomDatabase() {
     abstract fun transactionItemDao(): TransactionItemDao
     abstract fun storeSettingsDao(): StoreSettingsDao
     abstract fun expenseDao(): ExpenseDao
+    abstract fun rolePermissionDao(): RolePermissionDao
 
     companion object {
         const val DATABASE_NAME = "intikasir_database"

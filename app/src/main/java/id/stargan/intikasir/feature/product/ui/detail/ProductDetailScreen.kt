@@ -15,6 +15,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import id.stargan.intikasir.domain.model.UserRole
 
 /**
  * Product Detail Screen
@@ -37,6 +42,14 @@ fun ProductDetailScreen(
         }
     }
 
+    // Determine permissions
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canEditProduct = usePermission(securityVm.observePermission("CASHIER") { it.canEditProduct })
+    val canDeleteProduct = usePermission(securityVm.observePermission("CASHIER") { it.canDeleteProduct })
+    val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+    val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+    val isAdmin = currentUser?.role == UserRole.ADMIN
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -50,7 +63,7 @@ fun ProductDetailScreen(
                     }
                 },
                 actions = {
-                    if (uiState.isAdmin && uiState.product != null) {
+                    if (uiState.product != null && (isAdmin || canEditProduct)) {
                         IconButton(
                             onClick = {
                                 uiState.product?.let { onEditProduct(it.id) }
@@ -61,7 +74,9 @@ fun ProductDetailScreen(
                                 contentDescription = "Edit"
                             )
                         }
+                    }
 
+                    if (uiState.product != null && (isAdmin || canDeleteProduct)) {
                         IconButton(
                             onClick = { viewModel.onEvent(ProductDetailUiEvent.DeleteProduct) }
                         ) {
@@ -441,4 +456,3 @@ private fun DetailRow(
         )
     }
 }
-

@@ -9,6 +9,7 @@ object HomeRoutes {
     const val HISTORY = "history"
     const val EXPENSES = "expenses"
     const val REPORTS = "reports"
+    const val SECURITY = "security"
 
     const val CASHIER = "cashier"
     const val SETTINGS = "settings"

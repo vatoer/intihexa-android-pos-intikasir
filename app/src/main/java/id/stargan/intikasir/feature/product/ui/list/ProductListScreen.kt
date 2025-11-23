@@ -19,6 +19,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.product.ui.components.ProductFilterDialog
 import id.stargan.intikasir.feature.product.ui.components.ProductListItem
 import id.stargan.intikasir.feature.product.ui.components.ProductSortDialog
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
 
 /**
  * Product List Screen
@@ -35,6 +37,9 @@ fun ProductListScreen(
     viewModel: ProductListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // Example enforcement: show FAB if admin or cashier has create product permission
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canCreateProduct = usePermission(securityVm.observePermission("CASHIER") { it.canCreateProduct })
 
     Scaffold(
         topBar = {
@@ -54,7 +59,7 @@ fun ProductListScreen(
             )
         },
         floatingActionButton = {
-            if (uiState.isAdmin) {
+            if (uiState.isAdmin || canCreateProduct) {
                 FloatingActionButton(
                     onClick = {
                         viewModel.onEvent(ProductListUiEvent.AddProductClicked)

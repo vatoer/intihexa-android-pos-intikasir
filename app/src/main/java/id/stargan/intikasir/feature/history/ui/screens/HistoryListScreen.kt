@@ -20,6 +20,11 @@ import id.stargan.intikasir.feature.history.viewmodel.HistoryViewModel
 import id.stargan.intikasir.feature.history.ui.components.HistoryFilterBar
 import id.stargan.intikasir.feature.history.ui.components.TransactionRow
 import id.stargan.intikasir.feature.history.util.ExportUtil
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import id.stargan.intikasir.domain.model.UserRole
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
@@ -40,6 +45,13 @@ fun HistoryScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Permissions & role
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canDeleteTransaction = usePermission(securityVm.observePermission("CASHIER") { it.canDeleteTransaction })
+    val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+    val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+    val isAdmin = currentUser?.role == UserRole.ADMIN
 
     // Calculate summary
     val totalTransactions = uiState.transactions.size
@@ -189,7 +201,10 @@ fun HistoryScreen(
                         TransactionRow(
                             tx = tx,
                             currency = currency,
-                            onClick = { onOpenDetail(tx.id) }
+                            onClick = { onOpenDetail(tx.id) },
+                            onDelete = if (isAdmin || canDeleteTransaction) {
+                                { viewModel.onEvent(HistoryEvent.ShowDeleteConfirmation(tx.id)) }
+                            } else null
                         )
                     }
                 }

@@ -92,6 +92,13 @@ object MenuItems {
                 route = "pengguna",
                 description = "Kelola pengguna"
             )
+            extra += MenuItem(
+                id = "security",
+                title = "Keamanan",
+                icon = Icons.Filled.Security,
+                route = "security",
+                description = "Atur hak akses per role"
+            )
         }
         return base + extra
     }

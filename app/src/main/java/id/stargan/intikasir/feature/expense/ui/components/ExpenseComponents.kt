@@ -22,6 +22,7 @@ import java.util.Locale
 fun ExpenseItemCard(
     expense: ExpenseEntity,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val currency = remember { NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")) }
@@ -78,13 +79,21 @@ fun ExpenseItemCard(
                 }
             }
 
-            // Right: Amount
-            Text(
-                text = currency.format(expense.amount).replace("Rp", "Rp "),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
-            )
+            // Right: Amount and optional delete
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = currency.format(expense.amount).replace("Rp", "Rp "),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+                onDelete?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IconButton(onClick = it) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
         }
     }
 }

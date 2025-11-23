@@ -16,12 +16,16 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import id.stargan.intikasir.data.local.entity.PaymentMethod
 import java.util.UUID
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.IconButton
 
 @Composable
 fun TransactionRow(
     tx: TransactionEntity,
     currency: NumberFormat,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(onClick = onClick, modifier = modifier) {
@@ -38,6 +42,13 @@ fun TransactionRow(
             Column(horizontalAlignment = Alignment.End) {
                 Text(currency.format(tx.total).replace("Rp", "Rp "), style = MaterialTheme.typography.titleMedium)
                 Text(tx.status.name, style = MaterialTheme.typography.bodySmall)
+                // Optional delete button (shown only when onDelete provided)
+                onDelete?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IconButton(onClick = onDelete) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Hapus", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
     }

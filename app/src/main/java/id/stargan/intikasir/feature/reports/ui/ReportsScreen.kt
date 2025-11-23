@@ -38,6 +38,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import id.stargan.intikasir.feature.history.util.ExportUtil
 import java.io.IOException
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import id.stargan.intikasir.domain.model.UserRole
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +55,11 @@ fun ReportsScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val securityVm: SecuritySettingsViewModel = hiltViewModel()
+    val canViewReports = usePermission(securityVm.observePermission("CASHIER") { it.canViewReports })
+    val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+    val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+    val isAdmin = currentUser?.role == UserRole.ADMIN
 
     // Show error/success messages
     LaunchedEffect(uiState.error) {
@@ -84,6 +94,15 @@ fun ReportsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            // Permission gate
+            if (!isAdmin && !canViewReports) {
+                // show no permission message
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Anda tidak memiliki izin untuk melihat laporan")
+                }
+                return@Scaffold
+            }
+
             // Inline filter bar (like History)
             if (uiState.showFilter) {
                 ReportsFilterBar(
