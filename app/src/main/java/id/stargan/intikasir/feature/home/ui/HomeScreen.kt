@@ -20,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import android.net.Uri
+import androidx.compose.ui.platform.LocalConfiguration
 import coil.compose.AsyncImage
 import id.stargan.intikasir.feature.home.domain.model.MenuItems
 import id.stargan.intikasir.feature.reports.domain.model.PeriodType
@@ -32,6 +33,7 @@ import id.stargan.intikasir.feature.home.ui.components.SalesSummaryCard
 import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
 import id.stargan.intikasir.feature.security.util.usePermission
 import kotlin.math.roundToLong
+import kotlin.math.max
 
 /**
  * Stateless HomeScreen content — accepts plain data and callbacks so it can be previewed and tested
@@ -161,9 +163,15 @@ fun HomeScreenContent(
             // Spacer between the floating summary and the grid
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Menu Grid
+            // Menu Grid: ensure a minimum of 3 columns and up to 4 columns depending on screen width
+            val configuration = LocalConfiguration.current
+            val screenWidthDp = configuration.screenWidthDp
+            val minItemSize = 120
+            val calculated = remember(screenWidthDp) { (screenWidthDp / minItemSize).coerceIn(1, 4) }
+            val columns = max(3, calculated)
+
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
