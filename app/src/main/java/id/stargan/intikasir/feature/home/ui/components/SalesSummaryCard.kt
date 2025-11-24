@@ -28,20 +28,25 @@ fun SalesSummaryCard(
     netChange: Long? = null,
     isLoading: Boolean = false,
     errorMessage: String? = null,
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    cardColors: CardColors = CardDefaults.cardColors(),
+    headlineColor: androidx.compose.ui.graphics.Color? = null,
+    bodyColor: androidx.compose.ui.graphics.Color? = null
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = cardColors
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Ringkasan Penjualan Hari Ini",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = headlineColor ?: MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -55,7 +60,7 @@ fun SalesSummaryCard(
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "Memuat...", style = MaterialTheme.typography.bodyMedium)
+                            Text(text = "Memuat...", style = MaterialTheme.typography.bodyMedium, color = bodyColor ?: MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
 
@@ -73,7 +78,7 @@ fun SalesSummaryCard(
                                     tint = MaterialTheme.colorScheme.error
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = errorMessage, style = MaterialTheme.typography.bodyMedium)
+                                Text(text = errorMessage, style = MaterialTheme.typography.bodyMedium, color = bodyColor ?: MaterialTheme.colorScheme.onSurface)
                             }
                             if (onRetry != null) {
                                 IconButton(onClick = onRetry) {
@@ -88,7 +93,7 @@ fun SalesSummaryCard(
                         Text(
                             text = formatRupiah(totalSales),
                             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = headlineColor ?: MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -100,13 +105,14 @@ fun SalesSummaryCard(
                         ) {
                             Text(
                                 text = "Transaksi: ${transactionCount?.toString() ?: "-"}",
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = bodyColor ?: MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             netChange?.let { change ->
                                 val color = when {
-                                    change > 0L -> Color(0xFF2E7D32) // greenish
-                                    change < 0L -> Color(0xFFB00020) // reddish
+                                    change > 0L -> androidx.compose.ui.graphics.Color(0xFF2E7D32) // greenish
+                                    change < 0L -> androidx.compose.ui.graphics.Color(0xFFB00020) // reddish
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                                 val sign = if (change > 0L) "+" else if (change < 0L) "-" else ""
@@ -119,7 +125,7 @@ fun SalesSummaryCard(
                                 Text(
                                     text = "-",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = bodyColor ?: MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

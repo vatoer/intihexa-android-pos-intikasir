@@ -19,9 +19,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ExportDialog(
-    onExportCSV: () -> Unit,
-    onExportPDF: () -> Unit,
     onExportXlsx: () -> Unit,
+    onExportPDF: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -30,18 +29,6 @@ fun ExportDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Pilih format export:")
-
-                OutlinedButton(
-                    onClick = onExportCSV,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.TableChart,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export ke CSV (Excel)")
-                }
 
                 OutlinedButton(
                     onClick = onExportXlsx,

@@ -144,23 +144,6 @@ fun ReportsScreen(
                                 OutlinedButton(onClick = {
                                     scope.launch {
                                         runCatching {
-                                            val file = viewModel.exportWorstProducts(context)
-                                            ExportUtil.shareCSV(context, file)
-                                        }.onFailure { t ->
-                                            // prefer to surface IO/security issues specifically
-                                            val msg = when (t) {
-                                                is IOException -> "Gagal export worst products: ${t.message}"
-                                                else -> "Gagal export worst products"
-                                            }
-                                            snackbarHostState.showSnackbar(msg)
-                                        }
-                                    }
-                                }) {
-                                    Text(text = "Download Worst (CSV)")
-                                }
-                                OutlinedButton(onClick = {
-                                    scope.launch {
-                                        runCatching {
                                             val file = viewModel.exportWorstProductsXlsx(context)
                                             ExportUtil.shareXlsx(context, file)
                                         }.onFailure { t ->
@@ -224,21 +207,6 @@ fun ReportsScreen(
     // Export Dialog
     if (uiState.showExportDialog) {
         ExportDialog(
-            onExportCSV = {
-                scope.launch {
-                    runCatching {
-                        val file = viewModel.exportDashboardSummary(context)
-                        ExportUtil.shareCSV(context, file)
-                        viewModel.onEvent(ReportsEvent.HideExportDialog)
-                    }.onFailure { t ->
-                        val msg = when (t) {
-                            is IOException -> "Gagal export: ${t.message}"
-                            else -> "Gagal export"
-                        }
-                        snackbarHostState.showSnackbar(msg)
-                    }
-                }
-            },
             onExportXlsx = {
                 scope.launch {
                     runCatching {
