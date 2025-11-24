@@ -14,13 +14,14 @@ import id.stargan.intikasir.domain.model.StoreSettings
 
 @Composable
 fun BluetoothPrinterPickerSection(
+    modifier: Modifier = Modifier,
     adapter: BluetoothAdapter?,
     hasBtPermissions: Boolean,
     bluetoothPermissions: Array<String>,
     onRequestPermissions: (Array<String>) -> Unit,
     settings: StoreSettings?,
     onSavePrinter: (name: String, address: String) -> Unit,
-    modifier: Modifier = Modifier
+    isEditable: Boolean = true,
 ) {
     var bonded by remember { mutableStateOf<List<android.bluetooth.BluetoothDevice>>(emptyList()) }
     var selectedAddress by remember(settings) { mutableStateOf(settings?.printerAddress) }
@@ -60,45 +61,53 @@ fun BluetoothPrinterPickerSection(
                     Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
-            if (adapter == null) {
-                Text("Bluetooth tidak tersedia di perangkat ini", color = MaterialTheme.colorScheme.error)
-            } else if (!adapter.isEnabled) {
-                Text("Bluetooth nonaktif. Aktifkan Bluetooth untuk memilih printer.", color = MaterialTheme.colorScheme.error)
-            } else if (!hasBtPermissions && bluetoothPermissions.isNotEmpty()) {
-                Text("Izin BLUETOOTH_CONNECT/SCAN diperlukan untuk melihat perangkat.")
-                OutlinedButton(onClick = { onRequestPermissions(bluetoothPermissions) }) {
-                    Icon(Icons.Default.Bluetooth, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Izinkan Bluetooth")
+            if (!isEditable) {
+                if (!activeAddr.isNullOrBlank()) {
+                    Text("Pengaturan printer dikunci (tidak ada izin)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text("Printer tidak diatur dan Anda tidak memiliki izin untuk mengubahnya.", style = MaterialTheme.typography.bodySmall)
                 }
-            } else if (bonded.isEmpty()) {
-                Text("Tidak ada perangkat Bluetooth yang terpasang.")
-                Text("Silakan pasangkan printer terlebih dahulu melalui pengaturan Bluetooth.", style = MaterialTheme.typography.bodySmall)
             } else {
-                bonded.forEach { device ->
-                    val name = try { device.name } catch (_: SecurityException) { null } ?: "Unknown"
-                    val addr = try { device.address } catch (_: SecurityException) { null }
-                    if (addr != null) {
-                        val selected = selectedAddress == addr
-                        OutlinedButton(
-                            onClick = {
-                                selectedAddress = addr
-                                onSavePrinter(name, addr)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Row(
+                if (adapter == null) {
+                    Text("Bluetooth tidak tersedia di perangkat ini", color = MaterialTheme.colorScheme.error)
+                } else if (!adapter.isEnabled) {
+                    Text("Bluetooth nonaktif. Aktifkan Bluetooth untuk memilih printer.", color = MaterialTheme.colorScheme.error)
+                } else if (!hasBtPermissions && bluetoothPermissions.isNotEmpty()) {
+                    Text("Izin BLUETOOTH_CONNECT/SCAN diperlukan untuk melihat perangkat.")
+                    OutlinedButton(onClick = { onRequestPermissions(bluetoothPermissions) }) {
+                        Icon(Icons.Default.Bluetooth, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Izinkan Bluetooth")
+                    }
+                } else if (bonded.isEmpty()) {
+                    Text("Tidak ada perangkat Bluetooth yang terpasang.")
+                    Text("Silakan pasangkan printer terlebih dahulu melalui pengaturan Bluetooth.", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    bonded.forEach { device ->
+                        val name = try { device.name } catch (_: SecurityException) { null } ?: "Unknown"
+                        val addr = try { device.address } catch (_: SecurityException) { null }
+                        if (addr != null) {
+                            val selected = selectedAddress == addr
+                            OutlinedButton(
+                                onClick = {
+                                    selectedAddress = addr
+                                    onSavePrinter(name, addr)
+                                },
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
+                                )
                             ) {
-                                Column {
-                                    Text(name)
-                                    Text(addr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(name)
+                                        Text(addr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    if (selected) Icon(Icons.Default.Check, contentDescription = null)
                                 }
-                                if (selected) Icon(Icons.Default.Check, contentDescription = null)
                             }
                         }
                     }

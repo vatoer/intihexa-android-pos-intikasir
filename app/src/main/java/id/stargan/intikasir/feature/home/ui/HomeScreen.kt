@@ -13,6 +13,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import id.stargan.intikasir.feature.home.domain.model.MenuItems
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
 import id.stargan.intikasir.feature.home.ui.components.MenuCard
 import id.stargan.intikasir.feature.home.ui.components.SalesSummaryCard
 import id.stargan.intikasir.feature.reports.domain.model.PeriodType
@@ -123,7 +125,10 @@ fun HomeScreen(
                 }
             }
 
-            val menuList = MenuItems.items(isAdmin = currentUser?.role?.name == "ADMIN")
+            // Permission: include Settings menu for cashier only if cashier has canEditSettings permission
+            val securityVm: SecuritySettingsViewModel = hiltViewModel()
+            val includeSettingsForCashier = usePermission(securityVm.observePermission("CASHIER") { it.canEditSettings })
+            val menuList = MenuItems.items(isAdmin = currentUser?.role?.name == "ADMIN", includeSettingsForCashier = includeSettingsForCashier)
             // Menu Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),

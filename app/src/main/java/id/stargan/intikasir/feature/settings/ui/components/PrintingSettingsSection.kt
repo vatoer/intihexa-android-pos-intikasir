@@ -41,9 +41,11 @@ import java.io.File
 fun PrintingSettingsSection(
     settings: StoreSettings,
     onSave: (StoreSettings) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEditable: Boolean = true
 ) {
     var editMode by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditable) { if (!isEditable) editMode = false }
 
     var paperWidth by rememberSaveable(settings.paperWidthMm) { mutableStateOf(settings.paperWidthMm) }
     var charPerLine by rememberSaveable(settings.paperCharPerLine) { mutableStateOf(settings.paperCharPerLine) }
@@ -166,7 +168,7 @@ fun PrintingSettingsSection(
 
                 // Test print button
                 Button(
-                    enabled = !isPrinting,
+                    enabled = isEditable && !isPrinting,
                     onClick = {
                         isPrinting = true
                         try {

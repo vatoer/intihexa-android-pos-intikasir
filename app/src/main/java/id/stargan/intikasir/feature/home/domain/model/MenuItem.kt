@@ -20,7 +20,7 @@ data class MenuItem(
  * Daftar menu items untuk home screen
  */
 object MenuItems {
-    private val items = listOf(
+    private val baseItems = listOf(
         MenuItem(
             id = "cashier",
             title = "Kasir",
@@ -62,37 +62,46 @@ object MenuItems {
             icon = Icons.Filled.Assessment,
             route = "reports",
             description = "Laporan keuangan"
-        ),
-
-        MenuItem(
-            id = "settings",
-            title = "Pengaturan",
-            icon = Icons.Filled.Settings,
-            route = "settings",
-            description = "Pengaturan aplikasi"
         )
     )
 
-    fun items(isAdmin: Boolean): List<MenuItem> {
-        val base = items
-        val extra = mutableListOf(
-            MenuItem(
-                id = "profile",
-                title = "Profil",
-                icon = Icons.Filled.AccountCircle,
-                route = "profil",
-                description = "Ubah nama & PIN"
+    /**
+     * Build menu items.
+     * @param isAdmin whether current user is admin/owner (always sees everything)
+     * @param includeSettingsForCashier whether to include Settings for cashier (requires permission)
+     */
+    fun items(isAdmin: Boolean, includeSettingsForCashier: Boolean = false): List<MenuItem> {
+        val mutable = baseItems.toMutableList()
+
+        // Add Settings only when admin OR cashier allowed
+        if (isAdmin || includeSettingsForCashier) {
+            mutable += MenuItem(
+                id = "settings",
+                title = "Pengaturan",
+                icon = Icons.Filled.Settings,
+                route = "settings",
+                description = "Pengaturan aplikasi"
             )
+        }
+
+        // Common extras (always present)
+        mutable += MenuItem(
+            id = "profile",
+            title = "Profil",
+            icon = Icons.Filled.AccountCircle,
+            route = "profil",
+            description = "Ubah nama & PIN"
         )
+
         if (isAdmin) {
-            extra += MenuItem(
+            mutable += MenuItem(
                 id = "users",
                 title = "Pengguna",
                 icon = Icons.Filled.People,
                 route = "pengguna",
                 description = "Kelola pengguna"
             )
-            extra += MenuItem(
+            mutable += MenuItem(
                 id = "security",
                 title = "Keamanan",
                 icon = Icons.Filled.Security,
@@ -100,6 +109,6 @@ object MenuItems {
                 description = "Atur hak akses per role"
             )
         }
-        return base + extra
+        return mutable
     }
 }

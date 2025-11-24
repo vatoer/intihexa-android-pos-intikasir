@@ -17,9 +17,11 @@ import id.stargan.intikasir.domain.model.StoreSettings
 @Composable
 fun ReceiptSettingsSection(
     settings: StoreSettings,
-    onSave: (StoreSettings) -> Unit
+    onSave: (StoreSettings) -> Unit,
+    isEditable: Boolean = true
 ) {
     var editMode by remember { mutableStateOf(false) }
+    LaunchedEffect(isEditable) { if (!isEditable) editMode = false }
 
     var header by remember(settings) { mutableStateOf(settings.receiptHeader ?: "") }
     var footer by remember(settings) { mutableStateOf(settings.receiptFooter ?: "") }
@@ -40,7 +42,7 @@ fun ReceiptSettingsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "Pengaturan Struk", style = MaterialTheme.typography.titleMedium)
-                if (!editMode) {
+                if (!editMode && isEditable) {
                     TextButton(onClick = { editMode = true }) {
                         Icon(Icons.Default.Edit, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -120,4 +122,3 @@ private fun LabelValueRow(label: String, value: String) {
         )
     }
 }
-

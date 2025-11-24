@@ -24,7 +24,8 @@ fun LogoSection(
     onPickFromGallery: () -> Unit,
     onCaptureWithCameraRequested: () -> Unit,
     onRemoveLogo: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEditable: Boolean = true
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -100,23 +101,25 @@ fun LogoSection(
                 }
 
                 // FAB overlay outside the clipped child so it won't get cropped
-                SmallFloatingActionButton(
-                    onClick = { showLogoOptions = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset((-6).dp, (-6).dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Ubah Logo"
-                    )
+                if (isEditable) {
+                    SmallFloatingActionButton(
+                        onClick = { showLogoOptions = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset((-6).dp, (-6).dp),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Ubah Logo"
+                        )
+                    }
                 }
             }
 
-            if (showLogoOptions) {
+            if (showLogoOptions && isEditable) {
                 AlertDialog(
                     onDismissRequest = { showLogoOptions = false },
                     title = { Text("Pilih Sumber Logo") },
@@ -176,4 +179,3 @@ fun LogoSection(
         }
     }
 }
-

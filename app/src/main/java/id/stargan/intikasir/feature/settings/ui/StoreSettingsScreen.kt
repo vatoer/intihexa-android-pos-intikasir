@@ -43,6 +43,12 @@ import id.stargan.intikasir.feature.settings.ui.components.StoreInfoSection
 import id.stargan.intikasir.feature.settings.ui.components.LogoSection
 import id.stargan.intikasir.feature.settings.ui.components.PrintingSettingsSection
 import id.stargan.intikasir.feature.settings.ui.components.BluetoothPrinterPickerSection
+import id.stargan.intikasir.feature.security.ui.SecuritySettingsViewModel
+import id.stargan.intikasir.feature.security.util.usePermission
+import id.stargan.intikasir.feature.auth.domain.usecase.GetCurrentUserUseCase
+import id.stargan.intikasir.feature.home.navigation.HistoryRoleViewModel
+import id.stargan.intikasir.domain.model.UserRole
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,6 +190,14 @@ fun StoreSettingsScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { paddingValues ->
+        // Permission checks for editing settings
+        val securityVm: SecuritySettingsViewModel = hiltViewModel()
+        val canEditSettings = usePermission(securityVm.observePermission("CASHIER") { it.canEditSettings })
+        val getCurrentUserUseCase: GetCurrentUserUseCase = hiltViewModel<HistoryRoleViewModel>().getCurrentUserUseCase
+        val currentUser by getCurrentUserUseCase().collectAsState(initial = null)
+        val isAdmin = currentUser?.role == UserRole.ADMIN
+        val isEditable = isAdmin || canEditSettings
+
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier
@@ -209,25 +223,29 @@ fun StoreSettingsScreen(
                         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
                         if (granted) onCaptureLogo() else requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     },
-                    onRemoveLogo = { viewModel.onEvent(StoreSettingsUiEvent.RemoveLogo) }
+                    onRemoveLogo = { viewModel.onEvent(StoreSettingsUiEvent.RemoveLogo) },
+                    isEditable = isEditable
                 )
 
                 // Store Info Section (Editable)
                 StoreInfoSection(
                     settings = uiState.settings ?: StoreSettings(),
-                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) }
+                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) },
+                    isEditable = isEditable
                 )
 
                 // Receipt Settings Section (Header/Footer)
                 ReceiptSettingsSection(
                     settings = uiState.settings ?: StoreSettings(),
-                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) }
+                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) },
+                    isEditable = isEditable
                 )
 
                 // Printing Settings Section (extracted)
                 PrintingSettingsSection(
                     settings = uiState.settings ?: StoreSettings(),
-                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) }
+                    onSave = { updated -> viewModel.onEvent(StoreSettingsUiEvent.Save(updated)) },
+                    isEditable = isEditable
                 )
 
                 // Bluetooth Printer Picker Section (extracted)
@@ -249,7 +267,8 @@ fun StoreSettingsScreen(
                             )
                         )
                         scope.launch { snackbarHostState.showSnackbar("Printer di-set ke $name") }
-                    }
+                    },
+                    isEditable = isEditable
                 )
 
                 // Activation Info Section

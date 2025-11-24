@@ -18,8 +18,13 @@ import id.stargan.intikasir.domain.model.StoreSettings
 fun StoreInfoSection(
     settings: StoreSettings,
     onSave: (StoreSettings) -> Unit,
+    isEditable: Boolean = true
 ) {
     var editMode by remember { mutableStateOf(false) }
+    // Prevent edit mode when user cannot edit
+    LaunchedEffect(isEditable) {
+        if (!isEditable) editMode = false
+    }
 
     var name by remember(settings) { mutableStateOf(settings.storeName) }
     var address by remember(settings) { mutableStateOf(settings.storeAddress) }
@@ -42,7 +47,7 @@ fun StoreInfoSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "Informasi Toko", style = MaterialTheme.typography.titleMedium)
-                if (!editMode) {
+                if (isEditable && !editMode) {
                     TextButton(onClick = { editMode = true }) {
                         Icon(Icons.Default.Edit, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
@@ -144,4 +149,3 @@ private fun LabelValueRow(label: String, value: String) {
         )
     }
 }
-
