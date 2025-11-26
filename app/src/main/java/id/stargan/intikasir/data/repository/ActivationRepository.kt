@@ -34,7 +34,8 @@ class ActivationRepository(
             // 1. Prepare payload
             val requestPayload = ActivationRequestPayload(
                 sn = serialNumber,
-                device_uuid = deviceId
+                device_uuid = deviceId,
+                sku = "GEN001"
             )
             val payloadJson = gson.toJson(requestPayload)
 

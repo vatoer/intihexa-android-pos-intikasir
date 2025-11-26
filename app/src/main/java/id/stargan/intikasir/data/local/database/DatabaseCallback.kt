@@ -1,12 +1,10 @@
 package id.stargan.intikasir.data.local.database
 
-import android.content.Context
+import android.util.Log
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import id.stargan.intikasir.data.local.entity.CategoryEntity
 import id.stargan.intikasir.data.local.entity.ProductEntity
-import id.stargan.intikasir.data.local.entity.UserEntity
-import id.stargan.intikasir.data.local.entity.UserRole
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,6 +17,8 @@ import java.util.UUID
 class DatabaseCallback(
     private val scope: CoroutineScope
 ) : RoomDatabase.Callback() {
+
+    private val TAG = "DatabaseCallback"
 
     override fun onCreate(db: SupportSQLiteDatabase) {
         super.onCreate(db)
@@ -50,28 +50,34 @@ class DatabaseCallback(
 
         // Only insert users on first create (never duplicate)
         if (initialCreate) {
-            // Helper function to hash PIN
-            fun hashPin(pin: String): String {
-                val digest = MessageDigest.getInstance("SHA-256")
-                val hashBytes = digest.digest(pin.toByteArray())
-                return hashBytes.joinToString("") { "%02x".format(it) }
+            try {
+                // Helper function to hash PIN
+                fun hashPin(pin: String): String {
+                    val digest = MessageDigest.getInstance("SHA-256")
+                    val hashBytes = digest.digest(pin.toByteArray())
+                    return hashBytes.joinToString("") { "%02x".format(it) }
+                }
+                val adminPin = hashPin("1111")
+                val cashierPin = hashPin("2222")
+
+                // Note: users table has a non-null 'username' column; populate it
+                db.execSQL(
+                    """
+                INSERT INTO users (id, username, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?, 0)
+                """.trimIndent(),
+                    arrayOf<Any>(UUID.randomUUID().toString(), "admin", "Admin", adminPin, "ADMIN", timestamp, timestamp)
+                )
+                db.execSQL(
+                    """
+                INSERT INTO users (id, username, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?, 0)
+                """.trimIndent(),
+                    arrayOf<Any>(UUID.randomUUID().toString(), "kasir", "Kasir", cashierPin, "CASHIER", timestamp, timestamp)
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to populate sample users", e)
             }
-            val adminPin = hashPin("1111")
-            val cashierPin = hashPin("2222")
-            db.execSQL(
-                """
-                INSERT INTO users (id, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
-                VALUES (?, ?, ?, ?, 1, ?, ?, 0)
-                """.trimIndent(),
-                arrayOf<Any>(UUID.randomUUID().toString(), "Admin", adminPin, "ADMIN", timestamp, timestamp)
-            )
-            db.execSQL(
-                """
-                INSERT INTO users (id, name, pin, role, isActive, createdAt, updatedAt, isDeleted)
-                VALUES (?, ?, ?, ?, 1, ?, ?, 0)
-                """.trimIndent(),
-                arrayOf<Any>(UUID.randomUUID().toString(), "Kasir", cashierPin, "CASHIER", timestamp, timestamp)
-            )
         }
 
         val categoryCount = tableCount("categories")
@@ -80,8 +86,9 @@ class DatabaseCallback(
 
         // Seed default store settings if missing (acts as seedingComplete flag)
         if (settingsCount == 0L) {
-            db.execSQL(
-                """
+            try {
+                db.execSQL(
+                    """
                 INSERT INTO store_settings (
                     id, storeName, storeAddress, storePhone, storeEmail, storeLogo,
                     taxEnabled, taxPercentage, taxName, serviceEnabled, servicePercentage, serviceName,
@@ -98,77 +105,88 @@ class DatabaseCallback(
                     ?, ?, NULL
                 )
                 """.trimIndent(),
-                arrayOf<Any>(timestamp, timestamp)
-            )
+                    arrayOf<Any>(timestamp, timestamp)
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to populate store settings", e)
+            }
         }
 
         if (categoryCount > 0 && productCount > 0) return // Already seeded
 
         // 5 Kategori Sample (only if empty)
         if (categoryCount == 0L) {
-            val categories = listOf(
-                CategoryEntity(UUID.randomUUID().toString(), "Makanan", "Produk makanan dan cemilan", "#FF6B6B", null, 0, true, false, timestamp, timestamp),
-                CategoryEntity(UUID.randomUUID().toString(), "Minuman", "Minuman segar dan kemasan", "#4ECDC4", null, 0, true, false, timestamp, timestamp),
-                CategoryEntity(UUID.randomUUID().toString(), "Elektronik", "Peralatan elektronik", "#45B7D1", null, 0, true, false, timestamp, timestamp),
-                CategoryEntity(UUID.randomUUID().toString(), "Alat Tulis", "Perlengkapan tulis dan kantor", "#96CEB4", null, 0, true, false, timestamp, timestamp),
-                CategoryEntity(UUID.randomUUID().toString(), "Kebutuhan Rumah", "Produk kebutuhan sehari-hari", "#FFEAA7", null, 0, true, false, timestamp, timestamp)
-            )
-            categories.forEach { category ->
-                db.execSQL(
-                    """
+            try {
+                val categories = listOf(
+                    CategoryEntity(UUID.randomUUID().toString(), "Makanan", "Produk makanan dan cemilan", "#FF6B6B", null, 0, true, false, timestamp, timestamp),
+                    CategoryEntity(UUID.randomUUID().toString(), "Minuman", "Minuman segar dan kemasan", "#4ECDC4", null, 0, true, false, timestamp, timestamp),
+                    CategoryEntity(UUID.randomUUID().toString(), "Elektronik", "Peralatan elektronik", "#45B7D1", null, 0, true, false, timestamp, timestamp),
+                    CategoryEntity(UUID.randomUUID().toString(), "Alat Tulis", "Perlengkapan tulis dan kantor", "#96CEB4", null, 0, true, false, timestamp, timestamp),
+                    CategoryEntity(UUID.randomUUID().toString(), "Kebutuhan Rumah", "Produk kebutuhan sehari-hari", "#FFEAA7", null, 0, true, false, timestamp, timestamp)
+                )
+                categories.forEach { category ->
+                    db.execSQL(
+                        """
                     INSERT INTO categories (id, name, description, color, icon, 'order', isActive, createdAt, updatedAt, isDeleted)
                     VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, 0)
                     """.trimIndent(),
-                    arrayOf<Any?>(category.id, category.name, category.description, category.color, category.icon, category.createdAt, category.updatedAt)
-                )
+                        arrayOf<Any?>(category.id, category.name, category.description, category.color, category.icon, category.createdAt, category.updatedAt)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to populate categories", e)
             }
         }
 
         // 10 Produk Sample (only if empty)
         if (productCount == 0L) {
-            // Fetch category IDs just inserted or existing
-            val categoryIds = mutableListOf<String>()
-            db.query("SELECT id FROM categories WHERE isDeleted = 0 ORDER BY name ASC").use { cursor ->
-                while (cursor.moveToNext()) categoryIds += cursor.getString(0)
-            }
-            if (categoryIds.size < 5) return // safety
-            val products = listOf(
-                ProductEntity(UUID.randomUUID().toString(), "Nasi Goreng", "Nasi goreng spesial dengan telur", 15000.0, 10000.0, 50, 10, 10, categoryIds[0], "MKN-001", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Mie Ayam", "Mie ayam dengan bakso", 12000.0, 8000.0, 40, 10, 10, categoryIds[0], "MKN-002", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Es Teh Manis", "Teh manis dingin segar", 5000.0, 2000.0, 100, 20, 20, categoryIds[1], "MNM-001", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Kopi Susu", "Kopi susu premium", 8000.0, 4000.0, 80, 15, 15, categoryIds[1], "MNM-002", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Kabel USB Type-C", "Kabel USB Type-C 1 meter", 25000.0, 15000.0, 30, 5, 5, categoryIds[2], "ELK-001", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Earphone", "Earphone dengan microphone", 35000.0, 20000.0, 25, 5, 5, categoryIds[2], "ELK-002", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Pulpen", "Pulpen tinta hitam", 3000.0, 1500.0, 100, 20, 20, categoryIds[3], "ATK-001", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Buku Tulis", "Buku tulis 38 lembar", 5000.0, 3000.0, 60, 15, 15, categoryIds[3], "ATK-002", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Sabun Cuci Piring", "Sabun cuci piring 800ml", 12000.0, 8000.0, 35, 10, 10, categoryIds[4], "RMH-001", null, null, true, false, timestamp, timestamp),
-                ProductEntity(UUID.randomUUID().toString(), "Tisu Wajah", "Tisu wajah isi 250 lembar", 8000.0, 5000.0, 50, 10, 10, categoryIds[4], "RMH-002", null, null, true, false, timestamp, timestamp)
-            )
-            products.forEach { product ->
-                db.execSQL(
-                    """
+            try {
+                // Fetch category IDs just inserted or existing
+                val categoryIds = mutableListOf<String>()
+                db.query("SELECT id FROM categories WHERE isDeleted = 0 ORDER BY name ASC").use { cursor ->
+                    while (cursor.moveToNext()) categoryIds += cursor.getString(0)
+                }
+                if (categoryIds.size < 5) return // safety
+                val products = listOf(
+                    ProductEntity(UUID.randomUUID().toString(), "Nasi Goreng", "Nasi goreng spesial dengan telur", 15000.0, 10000.0, 50, 10, 10, categoryIds[0], "MKN-001", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Mie Ayam", "Mie ayam dengan bakso", 12000.0, 8000.0, 40, 10, 10, categoryIds[0], "MKN-002", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Es Teh Manis", "Teh manis dingin segar", 5000.0, 2000.0, 100, 20, 20, categoryIds[1], "MNM-001", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Kopi Susu", "Kopi susu premium", 8000.0, 4000.0, 80, 15, 15, categoryIds[1], "MNM-002", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Kabel USB Type-C", "Kabel USB Type-C 1 meter", 25000.0, 15000.0, 30, 5, 5, categoryIds[2], "ELK-001", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Earphone", "Earphone dengan microphone", 35000.0, 20000.0, 25, 5, 5, categoryIds[2], "ELK-002", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Pulpen", "Pulpen tinta hitam", 3000.0, 1500.0, 100, 20, 20, categoryIds[3], "ATK-001", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Buku Tulis", "Buku tulis 38 lembar", 5000.0, 3000.0, 60, 15, 15, categoryIds[3], "ATK-002", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Sabun Cuci Piring", "Sabun cuci piring 800ml", 12000.0, 8000.0, 35, 10, 10, categoryIds[4], "RMH-001", null, null, true, false, timestamp, timestamp),
+                    ProductEntity(UUID.randomUUID().toString(), "Tisu Wajah", "Tisu wajah isi 250 lembar", 8000.0, 5000.0, 50, 10, 10, categoryIds[4], "RMH-002", null, null, true, false, timestamp, timestamp)
+                )
+                products.forEach { product ->
+                    db.execSQL(
+                        """
                     INSERT INTO products (
                         id, name, description, price, cost, stock, minStock, lowStockThreshold, categoryId, sku, barcode, imageUrl,
                         isActive, createdAt, updatedAt, isDeleted
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)
                     """.trimIndent(),
-                    arrayOf<Any?>(
-                        product.id,
-                        product.name,
-                        product.description,
-                        product.price,
-                        product.cost,
-                        product.stock,
-                        product.minStock,
-                        product.lowStockThreshold,
-                        product.categoryId,
-                        product.sku,
-                        product.barcode,
-                        product.imageUrl,
-                        product.createdAt,
-                        product.updatedAt
+                        arrayOf<Any?>(
+                            product.id,
+                            product.name,
+                            product.description,
+                            product.price,
+                            product.cost,
+                            product.stock,
+                            product.minStock,
+                            product.lowStockThreshold,
+                            product.categoryId,
+                            product.sku,
+                            product.barcode,
+                            product.imageUrl,
+                            product.createdAt,
+                            product.updatedAt
+                        )
                     )
-                )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to populate products", e)
             }
         }
     }

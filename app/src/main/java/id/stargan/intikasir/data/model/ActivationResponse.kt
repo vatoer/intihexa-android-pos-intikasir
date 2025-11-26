@@ -34,6 +34,7 @@ data class ActivationRequest(
  */
 data class ActivationRequestPayload(
     val sn: String,
-    val device_uuid: String
+    val device_uuid: String,
+    val sku: String,
 )
 

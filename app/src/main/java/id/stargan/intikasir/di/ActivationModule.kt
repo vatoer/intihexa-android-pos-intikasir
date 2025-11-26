@@ -29,8 +29,8 @@ object ActivationModule {
 
     // Base URL untuk server aktivasi
     // Ganti dengan URL server yang sebenarnya
-    private const val BASE_URL = "http://192.168.18.93:3000/"
-
+//    private const val BASE_URL = "http://192.168.18.93:3000/"
+    private const val BASE_URL = "https://appreg.stargan.id/"
     @Provides
     @Singleton
     fun provideSecurePreferences(
