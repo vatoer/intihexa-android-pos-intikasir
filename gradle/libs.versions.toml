@@ -25,7 +25,7 @@ ucrop = "2.2.8"
 coil = "2.7.0"
 detekt = "1.23.6"
 ktlintGradle = "12.1.0"
-security = "1.1.0-alpha06"
+security = "1.1.0"
 poi = "5.5.0"
 
 [libraries]
