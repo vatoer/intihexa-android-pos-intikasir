@@ -17,19 +17,42 @@ android {
         applicationId = "id.stargan.intikasir"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 10001
+        versionName = "1.0.1-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 1. Mengaktifkan R8 (Pengecilan ukuran & Obfuscation)
+            // Ini akan menghilangkan Warning "Deobfuscation file"
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            // 2. Ini untuk memperbaiki Warning "Native code / debug symbols"
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+
+            // 3. Generate native debug symbols
+            isDebuggable = false
+        }
+
+        debug {
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+        }
+    }
+
+    // Ensure native debug symbols are packaged
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
         }
     }
     compileOptions {
